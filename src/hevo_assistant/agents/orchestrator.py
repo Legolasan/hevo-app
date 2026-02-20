@@ -196,11 +196,15 @@ class AgentOrchestrator:
         if self._pipelines_cache is not None:
             return self._pipelines_cache
 
+        def get_name(p: dict) -> str:
+            """Try multiple possible name keys."""
+            return p.get("name") or p.get("pipeline_name") or p.get("display_name") or ""
+
         try:
             from hevo_assistant.api.pipelines import get_pipeline_operations
             ops = get_pipeline_operations()
             pipelines = ops.list_all()
-            self._pipelines_cache = [p.get("name", "") for p in pipelines if p.get("name")]
+            self._pipelines_cache = [get_name(p) for p in pipelines if get_name(p)]
             return self._pipelines_cache
         except Exception:
             return []

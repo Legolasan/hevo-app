@@ -230,11 +230,61 @@ class ActionExecutor:
                 data=[],
             )
 
-        # Format pipeline list
-        lines = ["Found {} pipelines:".format(len(pipelines)), ""]
-        for p in pipelines:
-            status_emoji = "🟢" if p.get("status") == "ACTIVE" else "🟡"
-            lines.append(f"{status_emoji} {p.get('name')} ({p.get('status')})")
+        # Helper to get pipeline name - check multiple possible keys
+        def get_name(p: dict) -> str:
+            return (
+                p.get("name") or
+                p.get("pipeline_name") or
+                p.get("display_name") or
+                f"Pipeline #{p.get('id', 'unknown')}"
+            )
+
+        # Filter by status if requested
+        status_filter = params.get("status", "").upper()
+        if status_filter:
+            pipelines = [p for p in pipelines if p.get("status", "").upper() == status_filter]
+
+        if not pipelines:
+            return ActionResult(
+                success=True,
+                message=f"No {status_filter.lower()} pipelines found.",
+                data=[],
+            )
+
+        # Group by status for better readability
+        active = [p for p in pipelines if p.get("status") == "ACTIVE"]
+        paused = [p for p in pipelines if p.get("status") == "PAUSED"]
+        other = [p for p in pipelines if p.get("status") not in ("ACTIVE", "PAUSED")]
+
+        lines = [f"Found {len(pipelines)} pipelines:", ""]
+
+        if active:
+            lines.append(f"🟢 ACTIVE ({len(active)}):")
+            for p in active[:20]:  # Limit to 20 per group
+                name = get_name(p)
+                source = p.get("source", {}).get("type", "")
+                lines.append(f"   • {name}" + (f" [{source}]" if source else ""))
+            if len(active) > 20:
+                lines.append(f"   ... and {len(active) - 20} more")
+            lines.append("")
+
+        if paused:
+            lines.append(f"🟡 PAUSED ({len(paused)}):")
+            for p in paused[:10]:
+                name = get_name(p)
+                lines.append(f"   • {name}")
+            if len(paused) > 10:
+                lines.append(f"   ... and {len(paused) - 10} more")
+            lines.append("")
+
+        if other:
+            lines.append(f"⚪ OTHER ({len(other)}):")
+            for p in other[:5]:
+                name = get_name(p)
+                status = p.get("status", "UNKNOWN")
+                lines.append(f"   • {name} ({status})")
+            if len(other) > 5:
+                lines.append(f"   ... and {len(other) - 5} more")
 
         return ActionResult(
             success=True,

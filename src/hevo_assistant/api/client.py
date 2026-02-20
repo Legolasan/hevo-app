@@ -92,9 +92,12 @@ class HevoClient:
         """Get base URL for a region."""
         urls = {
             "us": "https://us.hevodata.com/api/public/v2.0",
+            "us2": "https://us2.hevodata.com/api/public/v2.0",
             "eu": "https://eu.hevodata.com/api/public/v2.0",
             "in": "https://in.hevodata.com/api/public/v2.0",
-            "apac": "https://apac.hevodata.com/api/public/v2.0",
+            "asia": "https://asia.hevodata.com/api/public/v2.0",
+            "au": "https://au.hevodata.com/api/public/v2.0",
+            "apac": "https://asia.hevodata.com/api/public/v2.0",  # Deprecated alias
         }
         return urls.get(region, urls["us"])
 
