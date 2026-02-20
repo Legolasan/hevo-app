@@ -10,6 +10,7 @@ A chat-to-action CLI tool for managing Hevo Data pipelines using natural languag
 - **Pipeline Management**: List, pause, resume, and run pipelines
 - **Model & Workflow Support**: Manage dbt models and workflows
 - **Secure Configuration**: Credentials stored locally in `~/.hevo/`
+- **Fast Installation**: ~30 seconds (no heavy ML dependencies)
 
 ## Installation
 
@@ -17,13 +18,25 @@ A chat-to-action CLI tool for managing Hevo Data pipelines using natural languag
 pip install hevo-assistant
 ```
 
-Or install from source:
+That's it! Installation is fast because we use cloud services (Pinecone + OpenAI) instead of local ML models.
+
+### For Development
 
 ```bash
 git clone https://github.com/Legolasan/hevo-app.git
 cd hevo-app
 pip install -e .
 ```
+
+### Optional: Local RAG (Heavy)
+
+If you prefer to run embeddings locally (offline mode), install with:
+
+```bash
+pip install hevo-assistant[local-rag]
+```
+
+Note: This adds ~2GB of dependencies (PyTorch, sentence-transformers).
 
 ## Quick Start
 
@@ -39,21 +52,9 @@ You'll be prompted for:
 - **Hevo API credentials**: Get from [Hevo Dashboard > Settings > API Keys](https://app.hevodata.com/settings/api-keys)
 - **LLM provider**: Choose OpenAI, Anthropic, or Ollama
 - **LLM API key**: Your provider's API key (not needed for Ollama)
+- **Pinecone API key**: Get free at [pinecone.io](https://pinecone.io)
 
-### 2. Index Documentation
-
-Crawl and index Hevo documentation for accurate responses:
-
-```bash
-hevo docs update
-```
-
-This will:
-- Crawl docs.hevodata.com (public documentation)
-- Crawl api-docs.hevodata.com (API reference)
-- Generate embeddings and store in local vector database
-
-### 3. Start Chatting
+### 2. Start Chatting
 
 ```bash
 # Interactive chat mode
@@ -97,8 +98,6 @@ hevo ask "Run my revenue model"
 |---------|-------------|
 | `hevo setup` | Interactive setup wizard |
 | `hevo config show` | Show current configuration |
-| `hevo docs update` | Crawl and index documentation |
-| `hevo docs status` | Show documentation index status |
 | `hevo chat` | Start interactive chat session |
 | `hevo ask "query"` | Ask a one-shot question |
 
@@ -119,8 +118,9 @@ Configuration is stored in `~/.hevo/config.json`:
     "model": "gpt-4"
   },
   "rag": {
-    "db_path": "~/.hevo/vectordb",
-    "embedding_model": "all-MiniLM-L6-v2"
+    "backend": "pinecone",
+    "pinecone_api_key": "pc-...",
+    "pinecone_index": "hevo-docs"
   }
 }
 ```
@@ -167,6 +167,46 @@ The assistant can execute these actions on your behalf:
 ### Destination Actions
 - List all destinations
 
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      hevo-assistant CLI                         │
+├─────────────────────────────────────────────────────────────────┤
+│  User Query ──► Intent Parser ──► RAG Context ──► LLM ──► Action│
+│                      │                │              │          │
+│                      ▼                ▼              ▼          │
+│                 Pinecone          OpenAI        Hevo API        │
+│                (Vector DB)      (Embeddings)    (Actions)       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Requirements
+
+- Python 3.10+
+- Hevo Data account with API access
+- LLM API key (OpenAI, Anthropic) or local Ollama installation
+- Pinecone API key (free tier available at [pinecone.io](https://pinecone.io))
+
+## Troubleshooting
+
+### "Configuration incomplete" error
+Run `hevo setup` to configure your API credentials.
+
+### API authentication errors
+1. Verify your Hevo API key and secret are correct
+2. Check that your API key has the required permissions
+3. Ensure you've selected the correct region
+
+### LLM errors
+1. Verify your LLM API key is valid
+2. For Ollama, ensure the service is running (`ollama serve`)
+3. Check that the model name is correct
+
+### Pinecone errors
+1. Verify your Pinecone API key is correct
+2. Ensure the index "hevo-docs" exists and is accessible
+
 ## Development
 
 ```bash
@@ -179,44 +219,6 @@ pytest
 # Format code
 black src/
 ```
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      hevo-assistant CLI                         │
-├─────────────────────────────────────────────────────────────────┤
-│  User Query ──► Intent Parser ──► RAG Context ──► LLM ──► Action│
-│                      │                │              │          │
-│                      ▼                ▼              ▼          │
-│              ChromaDB Vector    Hevo Docs     Hevo API Client   │
-│                 Store           Embeddings    (HTTP Requests)   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## Requirements
-
-- Python 3.10+
-- Hevo Data account with API access
-- LLM API key (OpenAI, Anthropic) or local Ollama installation
-
-## Troubleshooting
-
-### "Configuration incomplete" error
-Run `hevo setup` to configure your API credentials.
-
-### "Documentation not indexed" warning
-Run `hevo docs update` to index the Hevo documentation.
-
-### API authentication errors
-1. Verify your Hevo API key and secret are correct
-2. Check that your API key has the required permissions
-3. Ensure you've selected the correct region
-
-### LLM errors
-1. Verify your LLM API key is valid
-2. For Ollama, ensure the service is running (`ollama serve`)
-3. Check that the model name is correct
 
 ## License
 

@@ -60,12 +60,28 @@ class LLMConfig(BaseModel):
 class RAGConfig(BaseModel):
     """RAG system configuration."""
 
+    # Backend selection: "pinecone" (default, lightweight) or "local" (heavy)
+    backend: Literal["pinecone", "local"] = Field(
+        default="pinecone", description="RAG backend: 'pinecone' or 'local'"
+    )
+
+    # Pinecone configuration (default backend)
+    pinecone_api_key: SecretStr = Field(
+        default=SecretStr(""), description="Pinecone API Key"
+    )
+    pinecone_index: str = Field(
+        default="hevo-docs", description="Pinecone index name"
+    )
+
+    # Local ChromaDB configuration (optional, requires local-rag extra)
     db_path: str = Field(
         default="~/.hevo/vectordb", description="Path to ChromaDB storage"
     )
     embedding_model: str = Field(
         default="all-MiniLM-L6-v2", description="Sentence transformer model"
     )
+
+    # Common settings
     chunk_size: int = Field(default=500, description="Text chunk size for embedding")
     chunk_overlap: int = Field(default=50, description="Overlap between chunks")
     top_k: int = Field(default=5, description="Number of results to retrieve")
@@ -77,6 +93,12 @@ class RAGConfig(BaseModel):
     def resolved_db_path(self) -> Path:
         """Get the resolved path for the vector database."""
         return Path(self.db_path).expanduser()
+
+    def is_configured(self) -> bool:
+        """Check if RAG backend is configured."""
+        if self.backend == "pinecone":
+            return bool(self.pinecone_api_key.get_secret_value())
+        return True  # Local doesn't need external config
 
 
 class Config(BaseModel):
@@ -143,6 +165,9 @@ class Config(BaseModel):
                 "temperature": self.llm.temperature,
             },
             "rag": {
+                "backend": self.rag.backend,
+                "pinecone_api_key": self.rag.pinecone_api_key.get_secret_value(),
+                "pinecone_index": self.rag.pinecone_index,
                 "db_path": self.rag.db_path,
                 "embedding_model": self.rag.embedding_model,
                 "chunk_size": self.rag.chunk_size,

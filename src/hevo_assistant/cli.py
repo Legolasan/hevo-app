@@ -214,6 +214,19 @@ def setup():
         default=default_models.get(provider, config.llm.model),
     )
 
+    # Pinecone configuration (for RAG)
+    console.print("\n[bold]Step 3: Pinecone (RAG Backend)[/bold]")
+    console.print(
+        "Pinecone provides documentation search. "
+        "Get a free API key from: [link=https://pinecone.io]pinecone.io[/link]\n"
+    )
+
+    pinecone_api_key = Prompt.ask(
+        "Pinecone API Key",
+        default=config.rag.pinecone_api_key.get_secret_value() or None,
+        password=True,
+    )
+
     # Create new config
     from pydantic import SecretStr
 
@@ -232,7 +245,12 @@ def setup():
                 "model": model,
             }
         ),
-        rag=config.rag,
+        rag=config.rag.model_copy(
+            update={
+                "backend": "pinecone",
+                "pinecone_api_key": SecretStr(pinecone_api_key) if pinecone_api_key else SecretStr(""),
+            }
+        ),
     )
 
     # Save configuration
@@ -243,8 +261,7 @@ def setup():
 
     # Next steps
     console.print("\n[bold]Next steps:[/bold]")
-    console.print("1. Run [cyan]hevo docs update[/cyan] to index Hevo documentation")
-    console.print("2. Run [cyan]hevo chat[/cyan] to start chatting")
+    console.print("Run [cyan]hevo chat[/cyan] to start chatting")
 
 
 @main.group()
@@ -276,8 +293,13 @@ def config_show():
     table.add_row("", "")
 
     # RAG settings
-    table.add_row("Vector DB Path", cfg.rag.db_path)
-    table.add_row("Embedding Model", cfg.rag.embedding_model)
+    table.add_row("RAG Backend", cfg.rag.backend)
+    if cfg.rag.backend == "pinecone":
+        table.add_row("Pinecone API Key", "***" if cfg.rag.pinecone_api_key.get_secret_value() else "[red]Not set[/red]")
+        table.add_row("Pinecone Index", cfg.rag.pinecone_index)
+    else:
+        table.add_row("Vector DB Path", cfg.rag.db_path)
+        table.add_row("Embedding Model", cfg.rag.embedding_model)
     table.add_row("Last Updated", str(cfg.rag.last_updated) if cfg.rag.last_updated else "[yellow]Never[/yellow]")
 
     console.print(table)

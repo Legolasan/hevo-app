@@ -2,12 +2,57 @@
 Retriever for getting relevant context from the vector store.
 
 Provides context for LLM responses based on user queries.
+Supports both Pinecone (default, lightweight) and local ChromaDB backends.
 """
 
-from typing import Optional
+from typing import Any, Optional, Protocol
 
 from hevo_assistant.config import get_config
-from hevo_assistant.rag.vectorstore import VectorStore
+
+
+class VectorStoreProtocol(Protocol):
+    """Protocol for vector store implementations."""
+
+    def search(
+        self,
+        query: str,
+        n_results: int = 5,
+        doc_type: Optional[str] = None,
+    ) -> list[dict]:
+        """Search for similar documents."""
+        ...
+
+    def get_stats(self) -> dict:
+        """Get store statistics."""
+        ...
+
+
+def _get_vector_store() -> VectorStoreProtocol:
+    """
+    Get the appropriate vector store based on configuration.
+
+    Returns Pinecone by default (lightweight), falls back to local ChromaDB
+    if explicitly configured.
+    """
+    cfg = get_config()
+
+    if cfg.rag.backend == "pinecone":
+        from hevo_assistant.rag.pinecone_store import PineconeVectorStore
+        return PineconeVectorStore()
+
+    elif cfg.rag.backend == "local":
+        try:
+            from hevo_assistant.rag.vectorstore import VectorStore
+            return VectorStore()
+        except ImportError:
+            raise ImportError(
+                "Local RAG dependencies not installed.\n"
+                "Install with: pip install hevo-assistant[local-rag]\n"
+                "Or switch to Pinecone backend: hevo setup"
+            )
+
+    else:
+        raise ValueError(f"Unknown RAG backend: {cfg.rag.backend}")
 
 
 class Retriever:
@@ -17,14 +62,14 @@ class Retriever:
     Searches the vector store and formats results for LLM consumption.
     """
 
-    def __init__(self, vector_store: Optional[VectorStore] = None):
+    def __init__(self, vector_store: Optional[VectorStoreProtocol] = None):
         """
         Initialize the retriever.
 
         Args:
-            vector_store: VectorStore instance. If None, creates one.
+            vector_store: VectorStore instance. If None, creates one based on config.
         """
-        self.vector_store = vector_store or VectorStore()
+        self.vector_store = vector_store or _get_vector_store()
         self.config = get_config()
 
     def get_context(
