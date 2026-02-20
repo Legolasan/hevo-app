@@ -52,28 +52,51 @@ class ResponseSummarizer:
         return self._default_summary(data)
 
     def _summarize_pipelines(self, pipelines: list) -> str:
-        """Summarize pipeline list."""
+        """Summarize pipeline list in table format."""
         if not pipelines:
             return "You don't have any pipelines yet."
 
-        active = sum(1 for p in pipelines if isinstance(p, dict) and p.get("status") == "ACTIVE")
-        paused = sum(1 for p in pipelines if isinstance(p, dict) and p.get("status") == "PAUSED")
         total = len(pipelines)
 
-        lines = [f"You have **{total} pipelines**: {active} active, {paused} paused\n"]
-        lines.append("| Pipeline | Source | Status |")
-        lines.append("|----------|--------|--------|")
+        # Helper to get pipeline name from source.name
+        def get_name(p: dict) -> str:
+            source = p.get("source", {})
+            if isinstance(source, dict):
+                name = source.get("name")
+                if name:
+                    return str(name)[:40]
+            return f"Pipeline #{p.get('id', '?')}"
 
-        for p in pipelines[:10]:
+        # Helper to get source type
+        def get_source_type(p: dict) -> str:
+            source = p.get("source", {})
+            if isinstance(source, dict):
+                type_data = source.get("type", {})
+                if isinstance(type_data, dict):
+                    return type_data.get("display_name") or type_data.get("name") or ""
+            return ""
+
+        # Helper to get destination name
+        def get_dest_name(p: dict) -> str:
+            dest = p.get("destination", {})
+            if isinstance(dest, dict):
+                return dest.get("name", "")[:25]
+            return ""
+
+        lines = [f"Found {total} pipelines:\n"]
+        lines.append("| Name | Source | Destination | Status |")
+        lines.append("|------|--------|-------------|--------|")
+
+        for p in pipelines[:20]:
             if isinstance(p, dict):
-                name = p.get("name", "Unnamed")[:30]
-                source = p.get("source", {}).get("type", "Unknown") if isinstance(p.get("source"), dict) else "Unknown"
+                name = get_name(p)
+                source = get_source_type(p)
+                dest = get_dest_name(p)
                 status = p.get("status", "Unknown")
-                emoji = {"ACTIVE": "🟢", "PAUSED": "🟡", "DRAFT": "⚪"}.get(status, "🔴")
-                lines.append(f"| {name} | {source} | {emoji} {status} |")
+                lines.append(f"| {name} | {source} | {dest} | {status} |")
 
-        if len(pipelines) > 10:
-            lines.append(f"\n...and {len(pipelines) - 10} more.")
+        if len(pipelines) > 20:
+            lines.append(f"\n*Showing 20 of {len(pipelines)} pipelines.*")
 
         return "\n".join(lines)
 
@@ -112,98 +135,114 @@ class ResponseSummarizer:
         return "\n".join(lines)
 
     def _summarize_destinations(self, destinations: list) -> str:
-        """Summarize destination list."""
+        """Summarize destination list in table format."""
         if not destinations:
             return "You don't have any destinations configured."
 
-        # Group by type
-        by_type: Dict[str, int] = {}
-        for d in destinations:
-            if hasattr(d, "type"):
+        total = len(destinations)
+
+        lines = [f"Found {total} destinations:\n"]
+        lines.append("| Name | Type | Status |")
+        lines.append("|------|------|--------|")
+
+        for d in destinations[:20]:
+            if hasattr(d, "name"):
+                name = d.name[:30]
                 dtype = d.type
+                status = d.status
             elif isinstance(d, dict):
-                dtype = d.get("type", "Unknown")
+                name = d.get("name", "Unknown")[:30]
+                type_data = d.get("type", {})
+                if isinstance(type_data, dict):
+                    dtype = type_data.get("display_name") or type_data.get("name") or "Unknown"
+                else:
+                    dtype = str(type_data) if type_data else "Unknown"
+                status = d.get("status", "Unknown")
             else:
-                dtype = "Unknown"
-            by_type[dtype] = by_type.get(dtype, 0) + 1
+                continue
+            lines.append(f"| {name} | {dtype} | {status} |")
 
-        lines = [f"You have **{len(destinations)} destinations**:\n"]
-
-        for dtype, count in sorted(by_type.items()):
-            lines.append(f"- {dtype}: {count}")
+        if len(destinations) > 20:
+            lines.append(f"\n*Showing 20 of {len(destinations)} destinations.*")
 
         return "\n".join(lines)
 
     def _summarize_objects(self, objects: list) -> str:
-        """Summarize objects list."""
+        """Summarize objects list in table format."""
         if not objects:
             return "No objects found in this pipeline."
 
-        active = sum(1 for o in objects if isinstance(o, dict) and o.get("status") == "ACTIVE")
-        failed = sum(1 for o in objects if isinstance(o, dict) and o.get("status") in ("FAILED", "PERMISSION_DENIED"))
         total = len(objects)
 
-        lines = [f"**{total} objects**: {active} active"]
-        if failed > 0:
-            lines[0] += f", {failed} failed"
-
-        lines.append("")
+        lines = [f"Found {total} objects:\n"]
         lines.append("| Object | Status |")
         lines.append("|--------|--------|")
 
-        for obj in objects[:15]:
+        for obj in objects[:20]:
             if isinstance(obj, dict):
-                name = obj.get("name", "Unknown")[:30]
+                name = obj.get("name", "Unknown")[:40]
                 status = obj.get("status", "Unknown")
-                emoji = {"ACTIVE": "🟢", "PAUSED": "🟡", "SKIPPED": "⏭️", "FINISHED": "✅"}.get(status, "🔴")
-                lines.append(f"| {name} | {emoji} {status} |")
+                lines.append(f"| {name} | {status} |")
 
-        if len(objects) > 15:
-            lines.append(f"\n...and {len(objects) - 15} more.")
+        if len(objects) > 20:
+            lines.append(f"\n*Showing 20 of {len(objects)} objects.*")
 
         return "\n".join(lines)
 
     def _summarize_models(self, models: list) -> str:
-        """Summarize models list."""
+        """Summarize models list in table format."""
         if not models:
             return "You don't have any models yet."
 
-        lines = [f"You have **{len(models)} models**:\n"]
+        total = len(models)
 
-        for m in models[:10]:
+        lines = [f"Found {total} models:\n"]
+        lines.append("| Name | Status | Schedule |")
+        lines.append("|------|--------|----------|")
+
+        for m in models[:20]:
             if hasattr(m, "name"):
-                name = m.name
+                name = m.name[:30]
                 status = m.status
+                schedule = getattr(m, "schedule", "Unknown")
             elif isinstance(m, dict):
-                name = m.get("name", "Unknown")
+                name = m.get("name", "Unknown")[:30]
                 status = m.get("status", "Unknown")
+                schedule_data = m.get("schedule", {})
+                schedule = schedule_data.get("type", "Unknown") if isinstance(schedule_data, dict) else "Unknown"
             else:
                 continue
+            lines.append(f"| {name} | {status} | {schedule} |")
 
-            emoji = "🟢" if status == "ACTIVE" else "🟡"
-            lines.append(f"- {emoji} {name} ({status})")
+        if len(models) > 20:
+            lines.append(f"\n*Showing 20 of {len(models)} models.*")
 
         return "\n".join(lines)
 
     def _summarize_workflows(self, workflows: list) -> str:
-        """Summarize workflows list."""
+        """Summarize workflows list in table format."""
         if not workflows:
             return "You don't have any workflows yet."
 
-        lines = [f"You have **{len(workflows)} workflows**:\n"]
+        total = len(workflows)
 
-        for w in workflows[:10]:
+        lines = [f"Found {total} workflows:\n"]
+        lines.append("| Name | Status |")
+        lines.append("|------|--------|")
+
+        for w in workflows[:20]:
             if hasattr(w, "name"):
-                name = w.name
+                name = w.name[:30]
                 status = w.status
             elif isinstance(w, dict):
-                name = w.get("name", "Unknown")
+                name = w.get("name", "Unknown")[:30]
                 status = w.get("status", "Unknown")
             else:
                 continue
+            lines.append(f"| {name} | {status} |")
 
-            emoji = "🟢" if status == "ACTIVE" else "🟡"
-            lines.append(f"- {emoji} {name} ({status})")
+        if len(workflows) > 20:
+            lines.append(f"\n*Showing 20 of {len(workflows)} workflows.*")
 
         return "\n".join(lines)
 

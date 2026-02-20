@@ -190,10 +190,28 @@ class HevoClient:
 
     # ==================== Pipeline Operations ====================
 
-    def list_pipelines(self, limit: int = 100) -> list[dict]:
-        """List all pipelines."""
-        response = self.get("/pipelines", params={"limit": limit})
-        return response.get("data", [])
+    def list_pipelines(self, limit: int = 500) -> list[dict]:
+        """List all pipelines with pagination support."""
+        all_pipelines = []
+        starting_after = None
+
+        while True:
+            params = {"limit": min(limit, 100)}  # API max is 100 per page
+            if starting_after:
+                params["starting_after"] = starting_after
+
+            response = self.get("/pipelines", params=params)
+            pipelines = response.get("data", [])
+            all_pipelines.extend(pipelines)
+
+            # Check for more pages
+            pagination = response.get("pagination", {})
+            starting_after = pagination.get("starting_after")
+
+            if not starting_after or len(all_pipelines) >= limit:
+                break
+
+        return all_pipelines[:limit]
 
     def get_pipeline(self, pipeline_id: str) -> dict:
         """Get pipeline details."""
@@ -249,10 +267,27 @@ class HevoClient:
 
     # ==================== Destination Operations ====================
 
-    def list_destinations(self, limit: int = 50) -> list[dict]:
-        """List all destinations."""
-        response = self.get("/destinations", params={"limit": limit})
-        return response.get("data", [])
+    def list_destinations(self, limit: int = 500) -> list[dict]:
+        """List all destinations with pagination support."""
+        all_destinations = []
+        starting_after = None
+
+        while True:
+            params = {"limit": min(limit, 100)}
+            if starting_after:
+                params["starting_after"] = starting_after
+
+            response = self.get("/destinations", params=params)
+            destinations = response.get("data", [])
+            all_destinations.extend(destinations)
+
+            pagination = response.get("pagination", {})
+            starting_after = pagination.get("starting_after")
+
+            if not starting_after or len(all_destinations) >= limit:
+                break
+
+        return all_destinations[:limit]
 
     def get_destination(self, destination_id: str) -> dict:
         """Get destination details."""
@@ -260,10 +295,27 @@ class HevoClient:
 
     # ==================== Model Operations ====================
 
-    def list_models(self, limit: int = 50) -> list[dict]:
-        """List all models."""
-        response = self.get("/models", params={"limit": limit})
-        return response.get("data", [])
+    def list_models(self, limit: int = 500) -> list[dict]:
+        """List all models with pagination support."""
+        all_models = []
+        starting_after = None
+
+        while True:
+            params = {"limit": min(limit, 100)}
+            if starting_after:
+                params["starting_after"] = starting_after
+
+            response = self.get("/models", params=params)
+            models = response.get("data", [])
+            all_models.extend(models)
+
+            pagination = response.get("pagination", {})
+            starting_after = pagination.get("starting_after")
+
+            if not starting_after or len(all_models) >= limit:
+                break
+
+        return all_models[:limit]
 
     def run_model(self, model_id: str) -> dict:
         """Run a model immediately."""
@@ -271,10 +323,27 @@ class HevoClient:
 
     # ==================== Workflow Operations ====================
 
-    def list_workflows(self, limit: int = 50) -> list[dict]:
-        """List all workflows."""
-        response = self.get("/workflows", params={"limit": limit})
-        return response.get("data", [])
+    def list_workflows(self, limit: int = 500) -> list[dict]:
+        """List all workflows with pagination support."""
+        all_workflows = []
+        starting_after = None
+
+        while True:
+            params = {"limit": min(limit, 100)}
+            if starting_after:
+                params["starting_after"] = starting_after
+
+            response = self.get("/workflows", params=params)
+            workflows = response.get("data", [])
+            all_workflows.extend(workflows)
+
+            pagination = response.get("pagination", {})
+            starting_after = pagination.get("starting_after")
+
+            if not starting_after or len(all_workflows) >= limit:
+                break
+
+        return all_workflows[:limit]
 
     def run_workflow(self, workflow_id: str) -> dict:
         """Run a workflow immediately."""

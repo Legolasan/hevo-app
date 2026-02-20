@@ -220,7 +220,7 @@ class ActionExecutor:
     # ==================== Action Handlers ====================
 
     def _list_pipelines(self, params: dict) -> ActionResult:
-        """List all pipelines."""
+        """List all pipelines in table format."""
         pipelines = self.pipelines.list_all()
 
         if not pipelines:
@@ -230,28 +230,30 @@ class ActionExecutor:
                 data=[],
             )
 
-        # Helper to get pipeline name - check multiple possible keys
+        # Helper to get pipeline name from source.name
         def get_name(p: dict) -> str:
-            # Try various name fields
-            name = (
-                p.get("name") or
-                p.get("pipeline_name") or
-                p.get("display_name") or
-                p.get("title")
-            )
-            if name:
-                return str(name)
-            # Fallback: use source type + id
             source = p.get("source", {})
-            source_name = source.get("display_name") or source.get("name") if isinstance(source, dict) else ""
+            if isinstance(source, dict):
+                name = source.get("name")
+                if name:
+                    return str(name)
             pid = p.get("id", "?")
-            return f"{source_name} Pipeline #{pid}" if source_name else f"Pipeline #{pid}"
+            return f"Pipeline #{pid}"
 
         # Helper to get source type display name
         def get_source_type(p: dict) -> str:
             source = p.get("source", {})
             if isinstance(source, dict):
-                return source.get("display_name") or source.get("name") or ""
+                type_data = source.get("type", {})
+                if isinstance(type_data, dict):
+                    return type_data.get("display_name") or type_data.get("name") or ""
+            return ""
+
+        # Helper to get destination name
+        def get_dest_name(p: dict) -> str:
+            dest = p.get("destination", {})
+            if isinstance(dest, dict):
+                return dest.get("name", "")
             return ""
 
         # Filter by status if requested
@@ -266,43 +268,28 @@ class ActionExecutor:
                 data=[],
             )
 
-        # Group by status for better readability
-        active = [p for p in pipelines if p.get("status") == "ACTIVE"]
-        paused = [p for p in pipelines if p.get("status") == "PAUSED"]
-        other = [p for p in pipelines if p.get("status") not in ("ACTIVE", "PAUSED")]
+        # Get limit from params (default 20)
+        limit = params.get("limit", 20)
+        total = len(pipelines)
 
-        lines = [f"Found {len(pipelines)} pipelines:", ""]
+        # Build markdown table
+        lines = [
+            f"Found {total} pipelines:",
+            "",
+            "| Name | Source | Destination | Status |",
+            "|------|--------|-------------|--------|",
+        ]
 
-        if active:
-            lines.append(f"🟢 ACTIVE ({len(active)}):")
-            for p in active[:20]:  # Limit to 20 per group
-                name = get_name(p)
-                source_type = get_source_type(p)
-                if source_type and source_type not in name:
-                    lines.append(f"   • {name} [{source_type}]")
-                else:
-                    lines.append(f"   • {name}")
-            if len(active) > 20:
-                lines.append(f"   ... and {len(active) - 20} more")
+        for p in pipelines[:limit]:
+            name = get_name(p)
+            source = get_source_type(p)
+            dest = get_dest_name(p)
+            status = p.get("status", "UNKNOWN")
+            lines.append(f"| {name} | {source} | {dest} | {status} |")
+
+        if total > limit:
             lines.append("")
-
-        if paused:
-            lines.append(f"🟡 PAUSED ({len(paused)}):")
-            for p in paused[:10]:
-                name = get_name(p)
-                lines.append(f"   • {name}")
-            if len(paused) > 10:
-                lines.append(f"   ... and {len(paused) - 10} more")
-            lines.append("")
-
-        if other:
-            lines.append(f"⚪ OTHER ({len(other)}):")
-            for p in other[:5]:
-                name = get_name(p)
-                status = p.get("status", "UNKNOWN")
-                lines.append(f"   • {name} ({status})")
-            if len(other) > 5:
-                lines.append(f"   ... and {len(other) - 5} more")
+            lines.append(f"*Showing {limit} of {total} pipelines. Say 'show more' or 'show all' to see more.*")
 
         return ActionResult(
             success=True,
@@ -347,7 +334,7 @@ class ActionExecutor:
             self.pipelines.pause(pipeline_id=pipeline_id, name=name)
             return ActionResult(
                 success=True,
-                message=f"Pipeline '{name or pipeline_id}' paused successfully.",
+                message=f"✓ Pipeline '{name or pipeline_id}' paused.",
             )
         except ValueError as e:
             return ActionResult(success=False, message=str(e))
@@ -361,7 +348,7 @@ class ActionExecutor:
             self.pipelines.resume(pipeline_id=pipeline_id, name=name)
             return ActionResult(
                 success=True,
-                message=f"Pipeline '{name or pipeline_id}' resumed successfully.",
+                message=f"✓ Pipeline '{name or pipeline_id}' resumed.",
             )
         except ValueError as e:
             return ActionResult(success=False, message=str(e))
@@ -375,13 +362,13 @@ class ActionExecutor:
             self.pipelines.run_now(pipeline_id=pipeline_id, name=name)
             return ActionResult(
                 success=True,
-                message=f"Pipeline '{name or pipeline_id}' triggered to run now.",
+                message=f"✓ Pipeline '{name or pipeline_id}' triggered.",
             )
         except ValueError as e:
             return ActionResult(success=False, message=str(e))
 
     def _list_objects(self, params: dict) -> ActionResult:
-        """List objects in a pipeline."""
+        """List objects in a pipeline in table format."""
         pipeline_id = params.get("pipeline_id")
         name = params.get("pipeline_name")
 
@@ -403,11 +390,26 @@ class ActionExecutor:
                 data=[],
             )
 
-        lines = [f"Found {len(objects)} objects:", ""]
-        for obj in objects[:20]:  # Limit to 20
+        # Get limit from params (default 20)
+        limit = params.get("limit", 20)
+        total = len(objects)
+
+        # Build markdown table
+        lines = [
+            f"Found {total} objects:",
+            "",
+            "| Object | Status |",
+            "|--------|--------|",
+        ]
+
+        for obj in objects[:limit]:
+            obj_name = obj.get("name", "Unknown")
             status = obj.get("status", "UNKNOWN")
-            status_emoji = {"ACTIVE": "🟢", "PAUSED": "🟡", "SKIPPED": "⏭️"}.get(status, "🔴")
-            lines.append(f"{status_emoji} {obj.get('name')} ({status})")
+            lines.append(f"| {obj_name} | {status} |")
+
+        if total > limit:
+            lines.append("")
+            lines.append(f"*Showing {limit} of {total} objects. Say 'show more' or 'show all' to see more.*")
 
         return ActionResult(
             success=True,
@@ -429,7 +431,7 @@ class ActionExecutor:
         self.pipelines.skip_object(pipeline_id, object_name)
         return ActionResult(
             success=True,
-            message=f"Object '{object_name}' skipped successfully.",
+            message=f"✓ Object '{object_name}' skipped.",
         )
 
     def _restart_object(self, params: dict) -> ActionResult:
@@ -446,11 +448,11 @@ class ActionExecutor:
         self.pipelines.restart_object(pipeline_id, object_name)
         return ActionResult(
             success=True,
-            message=f"Object '{object_name}' restarted successfully.",
+            message=f"✓ Object '{object_name}' restarted.",
         )
 
     def _list_destinations(self, params: dict) -> ActionResult:
-        """List all destinations."""
+        """List all destinations in table format."""
         destinations = self.destinations.list_all()
 
         if not destinations:
@@ -460,9 +462,24 @@ class ActionExecutor:
                 data=[],
             )
 
-        lines = [f"Found {len(destinations)} destinations:", ""]
-        for d in destinations:
-            lines.append(f"- {d.name} ({d.type})")
+        # Get limit from params (default 20)
+        limit = params.get("limit", 20)
+        total = len(destinations)
+
+        # Build markdown table
+        lines = [
+            f"Found {total} destinations:",
+            "",
+            "| Name | Type | Status |",
+            "|------|------|--------|",
+        ]
+
+        for d in destinations[:limit]:
+            lines.append(f"| {d.name} | {d.type} | {d.status} |")
+
+        if total > limit:
+            lines.append("")
+            lines.append(f"*Showing {limit} of {total} destinations. Say 'show more' or 'show all' to see more.*")
 
         return ActionResult(
             success=True,
@@ -471,7 +488,7 @@ class ActionExecutor:
         )
 
     def _list_models(self, params: dict) -> ActionResult:
-        """List all models."""
+        """List all models in table format."""
         models = self.models.list_all()
 
         if not models:
@@ -481,10 +498,24 @@ class ActionExecutor:
                 data=[],
             )
 
-        lines = [f"Found {len(models)} models:", ""]
-        for m in models:
-            status_emoji = "🟢" if m.status == "ACTIVE" else "🟡"
-            lines.append(f"{status_emoji} {m.name} ({m.status})")
+        # Get limit from params (default 20)
+        limit = params.get("limit", 20)
+        total = len(models)
+
+        # Build markdown table
+        lines = [
+            f"Found {total} models:",
+            "",
+            "| Name | Status | Schedule |",
+            "|------|--------|----------|",
+        ]
+
+        for m in models[:limit]:
+            lines.append(f"| {m.name} | {m.status} | {m.schedule} |")
+
+        if total > limit:
+            lines.append("")
+            lines.append(f"*Showing {limit} of {total} models. Say 'show more' or 'show all' to see more.*")
 
         return ActionResult(
             success=True,
@@ -509,11 +540,11 @@ class ActionExecutor:
         self.models.run_now(model_id)
         return ActionResult(
             success=True,
-            message=f"Model '{name or model_id}' triggered to run now.",
+            message=f"✓ Model '{name or model_id}' triggered.",
         )
 
     def _list_workflows(self, params: dict) -> ActionResult:
-        """List all workflows."""
+        """List all workflows in table format."""
         workflows = self.workflows.list_all()
 
         if not workflows:
@@ -523,10 +554,24 @@ class ActionExecutor:
                 data=[],
             )
 
-        lines = [f"Found {len(workflows)} workflows:", ""]
-        for w in workflows:
-            status_emoji = "🟢" if w.status == "ACTIVE" else "🟡"
-            lines.append(f"{status_emoji} {w.name} ({w.status})")
+        # Get limit from params (default 20)
+        limit = params.get("limit", 20)
+        total = len(workflows)
+
+        # Build markdown table
+        lines = [
+            f"Found {total} workflows:",
+            "",
+            "| Name | Status |",
+            "|------|--------|",
+        ]
+
+        for w in workflows[:limit]:
+            lines.append(f"| {w.name} | {w.status} |")
+
+        if total > limit:
+            lines.append("")
+            lines.append(f"*Showing {limit} of {total} workflows. Say 'show more' or 'show all' to see more.*")
 
         return ActionResult(
             success=True,
@@ -551,7 +596,7 @@ class ActionExecutor:
         self.workflows.run_now(workflow_id)
         return ActionResult(
             success=True,
-            message=f"Workflow '{name or workflow_id}' triggered to run now.",
+            message=f"✓ Workflow '{name or workflow_id}' triggered.",
         )
 
 

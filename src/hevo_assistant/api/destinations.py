@@ -18,15 +18,24 @@ class DestinationInfo:
     name: str
     type: str
     status: str
+    health_status: str = "OK"
 
     @classmethod
     def from_api(cls, data: dict) -> "DestinationInfo":
         """Create from API response."""
+        # Type can be a dict with 'display_name' or a string
+        type_data = data.get("type", {})
+        if isinstance(type_data, dict):
+            type_name = type_data.get("display_name") or type_data.get("name") or "Unknown"
+        else:
+            type_name = str(type_data) if type_data else "Unknown"
+
         return cls(
             id=str(data.get("id", "")),
             name=data.get("name", "Unknown"),
-            type=data.get("type", "Unknown"),
+            type=type_name,
             status=data.get("status", "UNKNOWN"),
+            health_status=data.get("health_status", "OK"),
         )
 
 

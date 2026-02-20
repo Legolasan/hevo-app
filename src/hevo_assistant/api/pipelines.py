@@ -18,10 +18,12 @@ class PipelineStatus:
     name: str
     status: str
     source_type: str
-    destination_id: str
+    destination_name: str
+    destination_type: str
     objects_count: int
     active_objects: int
     failed_objects: int
+    health_status: str = "OK"
 
     @classmethod
     def from_api(cls, data: dict, objects: list[dict] = None) -> "PipelineStatus":
@@ -30,15 +32,40 @@ class PipelineStatus:
         active = sum(1 for o in objects if o.get("status") == "ACTIVE")
         failed = sum(1 for o in objects if o.get("status") in ("FAILED", "PERMISSION_DENIED"))
 
+        # Get pipeline name from source.name (pipelines don't have top-level name)
+        source = data.get("source", {})
+        name = source.get("name") if isinstance(source, dict) else None
+        if not name:
+            # Fallback to ID-based name
+            name = f"Pipeline #{data.get('id', '?')}"
+
+        # Get source type display name
+        source_type_data = source.get("type", {}) if isinstance(source, dict) else {}
+        if isinstance(source_type_data, dict):
+            source_type = source_type_data.get("display_name") or source_type_data.get("name") or "Unknown"
+        else:
+            source_type = str(source_type_data) if source_type_data else "Unknown"
+
+        # Get destination info
+        dest = data.get("destination", {})
+        dest_name = dest.get("name", "Unknown") if isinstance(dest, dict) else "Unknown"
+        dest_type_data = dest.get("type", {}) if isinstance(dest, dict) else {}
+        if isinstance(dest_type_data, dict):
+            dest_type = dest_type_data.get("display_name") or dest_type_data.get("name") or "Unknown"
+        else:
+            dest_type = str(dest_type_data) if dest_type_data else "Unknown"
+
         return cls(
             id=str(data.get("id", "")),
-            name=data.get("name", "Unknown"),
+            name=name,
             status=data.get("status", "UNKNOWN"),
-            source_type=data.get("source", {}).get("type", "Unknown"),
-            destination_id=str(data.get("destination_id", "")),
+            source_type=source_type,
+            destination_name=dest_name,
+            destination_type=dest_type,
             objects_count=len(objects),
             active_objects=active,
             failed_objects=failed,
+            health_status=data.get("health_status", "OK"),
         )
 
 
