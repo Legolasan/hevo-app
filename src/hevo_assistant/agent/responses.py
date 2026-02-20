@@ -5,7 +5,7 @@ Formats LLM responses and action results for display.
 """
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Optional, List, Dict
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -16,6 +16,206 @@ from hevo_assistant.agent.actions import ActionResult
 
 
 console = Console()
+
+
+class ResponseSummarizer:
+    """
+    Summarizes API responses in human-friendly format.
+
+    Transforms raw data into readable summaries with tables and bullet points.
+    """
+
+    def summarize(self, action_name: str, data: Any) -> str:
+        """
+        Summarize API response data based on action type.
+
+        Args:
+            action_name: Name of the action that produced this data
+            data: Raw data from the action
+
+        Returns:
+            Human-friendly summary string
+        """
+        summarizers = {
+            "list_pipelines": self._summarize_pipelines,
+            "get_pipeline": self._summarize_pipeline_detail,
+            "list_destinations": self._summarize_destinations,
+            "list_objects": self._summarize_objects,
+            "list_models": self._summarize_models,
+            "list_workflows": self._summarize_workflows,
+        }
+
+        summarizer = summarizers.get(action_name)
+        if summarizer:
+            return summarizer(data)
+
+        return self._default_summary(data)
+
+    def _summarize_pipelines(self, pipelines: list) -> str:
+        """Summarize pipeline list."""
+        if not pipelines:
+            return "You don't have any pipelines yet."
+
+        active = sum(1 for p in pipelines if isinstance(p, dict) and p.get("status") == "ACTIVE")
+        paused = sum(1 for p in pipelines if isinstance(p, dict) and p.get("status") == "PAUSED")
+        total = len(pipelines)
+
+        lines = [f"You have **{total} pipelines**: {active} active, {paused} paused\n"]
+        lines.append("| Pipeline | Source | Status |")
+        lines.append("|----------|--------|--------|")
+
+        for p in pipelines[:10]:
+            if isinstance(p, dict):
+                name = p.get("name", "Unnamed")[:30]
+                source = p.get("source", {}).get("type", "Unknown") if isinstance(p.get("source"), dict) else "Unknown"
+                status = p.get("status", "Unknown")
+                emoji = {"ACTIVE": "🟢", "PAUSED": "🟡", "DRAFT": "⚪"}.get(status, "🔴")
+                lines.append(f"| {name} | {source} | {emoji} {status} |")
+
+        if len(pipelines) > 10:
+            lines.append(f"\n...and {len(pipelines) - 10} more.")
+
+        return "\n".join(lines)
+
+    def _summarize_pipeline_detail(self, pipeline) -> str:
+        """Summarize a single pipeline's details."""
+        if isinstance(pipeline, dict):
+            data = pipeline
+        elif hasattr(pipeline, "__dict__"):
+            data = {
+                "name": getattr(pipeline, "name", "Unknown"),
+                "status": getattr(pipeline, "status", "Unknown"),
+                "source_type": getattr(pipeline, "source_type", "Unknown"),
+                "objects_count": getattr(pipeline, "objects_count", 0),
+                "active_objects": getattr(pipeline, "active_objects", 0),
+                "failed_objects": getattr(pipeline, "failed_objects", 0),
+            }
+        else:
+            return str(pipeline)
+
+        status = data.get("status", "Unknown")
+        emoji = {"ACTIVE": "🟢", "PAUSED": "🟡", "DRAFT": "⚪"}.get(status, "🔴")
+
+        lines = [
+            f"{emoji} **{data.get('name', 'Unknown')}**",
+            "",
+            f"- **Status:** {status}",
+            f"- **Source:** {data.get('source_type', 'Unknown')}",
+        ]
+
+        objects_count = data.get("objects_count", 0)
+        if objects_count:
+            active = data.get("active_objects", 0)
+            failed = data.get("failed_objects", 0)
+            lines.append(f"- **Objects:** {objects_count} total, {active} active, {failed} failed")
+
+        return "\n".join(lines)
+
+    def _summarize_destinations(self, destinations: list) -> str:
+        """Summarize destination list."""
+        if not destinations:
+            return "You don't have any destinations configured."
+
+        # Group by type
+        by_type: Dict[str, int] = {}
+        for d in destinations:
+            if hasattr(d, "type"):
+                dtype = d.type
+            elif isinstance(d, dict):
+                dtype = d.get("type", "Unknown")
+            else:
+                dtype = "Unknown"
+            by_type[dtype] = by_type.get(dtype, 0) + 1
+
+        lines = [f"You have **{len(destinations)} destinations**:\n"]
+
+        for dtype, count in sorted(by_type.items()):
+            lines.append(f"- {dtype}: {count}")
+
+        return "\n".join(lines)
+
+    def _summarize_objects(self, objects: list) -> str:
+        """Summarize objects list."""
+        if not objects:
+            return "No objects found in this pipeline."
+
+        active = sum(1 for o in objects if isinstance(o, dict) and o.get("status") == "ACTIVE")
+        failed = sum(1 for o in objects if isinstance(o, dict) and o.get("status") in ("FAILED", "PERMISSION_DENIED"))
+        total = len(objects)
+
+        lines = [f"**{total} objects**: {active} active"]
+        if failed > 0:
+            lines[0] += f", {failed} failed"
+
+        lines.append("")
+        lines.append("| Object | Status |")
+        lines.append("|--------|--------|")
+
+        for obj in objects[:15]:
+            if isinstance(obj, dict):
+                name = obj.get("name", "Unknown")[:30]
+                status = obj.get("status", "Unknown")
+                emoji = {"ACTIVE": "🟢", "PAUSED": "🟡", "SKIPPED": "⏭️", "FINISHED": "✅"}.get(status, "🔴")
+                lines.append(f"| {name} | {emoji} {status} |")
+
+        if len(objects) > 15:
+            lines.append(f"\n...and {len(objects) - 15} more.")
+
+        return "\n".join(lines)
+
+    def _summarize_models(self, models: list) -> str:
+        """Summarize models list."""
+        if not models:
+            return "You don't have any models yet."
+
+        lines = [f"You have **{len(models)} models**:\n"]
+
+        for m in models[:10]:
+            if hasattr(m, "name"):
+                name = m.name
+                status = m.status
+            elif isinstance(m, dict):
+                name = m.get("name", "Unknown")
+                status = m.get("status", "Unknown")
+            else:
+                continue
+
+            emoji = "🟢" if status == "ACTIVE" else "🟡"
+            lines.append(f"- {emoji} {name} ({status})")
+
+        return "\n".join(lines)
+
+    def _summarize_workflows(self, workflows: list) -> str:
+        """Summarize workflows list."""
+        if not workflows:
+            return "You don't have any workflows yet."
+
+        lines = [f"You have **{len(workflows)} workflows**:\n"]
+
+        for w in workflows[:10]:
+            if hasattr(w, "name"):
+                name = w.name
+                status = w.status
+            elif isinstance(w, dict):
+                name = w.get("name", "Unknown")
+                status = w.get("status", "Unknown")
+            else:
+                continue
+
+            emoji = "🟢" if status == "ACTIVE" else "🟡"
+            lines.append(f"- {emoji} {name} ({status})")
+
+        return "\n".join(lines)
+
+    def _default_summary(self, data: Any) -> str:
+        """Default summarization for unknown data types."""
+        if isinstance(data, list):
+            return f"Found {len(data)} items."
+        elif isinstance(data, dict):
+            return "Operation completed successfully."
+        elif data is None:
+            return "No data returned."
+        return str(data)
 
 
 @dataclass
@@ -166,12 +366,14 @@ class ResponseFormatter:
         console.print()
         console.print(Panel(
             "[bold cyan]Hevo Assistant[/bold cyan]\n\n"
-            "I can help you manage your Hevo pipelines, destinations, models, and workflows.\n\n"
+            "I'm your Hevo Data Engineer assistant. I can help you manage your pipelines, "
+            "destinations, models, and workflows.\n\n"
             "[dim]Examples:[/dim]\n"
+            "• What can I do? [dim](see all available functions)[/dim]\n"
             "• List my pipelines\n"
             "• Check the status of my Salesforce pipeline\n"
             "• Pause the MySQL pipeline\n"
-            "• How do I create a new destination?\n\n"
+            "• Run my daily_summary model\n\n"
             "[dim]Type 'exit' or 'quit' to end the chat.[/dim]",
             title="Welcome",
             border_style="cyan",
@@ -189,3 +391,8 @@ class ResponseFormatter:
 def get_response_formatter() -> ResponseFormatter:
     """Get a ResponseFormatter instance."""
     return ResponseFormatter()
+
+
+def get_response_summarizer() -> ResponseSummarizer:
+    """Get a ResponseSummarizer instance."""
+    return ResponseSummarizer()

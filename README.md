@@ -14,15 +14,15 @@ A chat-to-action CLI tool for managing Hevo Data pipelines using natural languag
 ## Installation
 
 ```bash
-# Clone the repository
+pip install hevo-assistant
+```
+
+Or install from source:
+
+```bash
 git clone https://github.com/Legolasan/hevo-app.git
 cd hevo-app
-
-# Install in development mode
 pip install -e .
-
-# Or install directly
-pip install .
 ```
 
 ## Quick Start

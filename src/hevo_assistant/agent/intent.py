@@ -17,6 +17,7 @@ class IntentType(Enum):
     QUESTION = "question"  # General question about Hevo
     LIST = "list"  # List resources (pipelines, destinations, etc.)
     STATUS = "status"  # Check status of a resource
+    CAPABILITIES = "capabilities"  # "What can I do?" - list available functions
 
     # Actions
     PAUSE = "pause"  # Pause a resource
@@ -24,6 +25,7 @@ class IntentType(Enum):
     RUN = "run"  # Run/trigger a resource
     SKIP = "skip"  # Skip an object
     RESTART = "restart"  # Restart an object
+    CREATE = "create"  # Create a new resource
 
     # Help
     HELP = "help"  # Help or greeting
@@ -62,17 +64,20 @@ class IntentParser:
 
     # Intent patterns (order matters - first match wins)
     INTENT_PATTERNS = [
+        # Capabilities discovery (check first)
+        (IntentType.CAPABILITIES, r"\b(what can (you|i) do|capabilities|available (functions|actions|features)|what (functions|actions|features)|help me with)\b"),
         # Actions
         (IntentType.PAUSE, r"\b(pause|stop|halt|disable)\b"),
         (IntentType.RESUME, r"\b(resume|start|enable|activate|unpause)\b"),
         (IntentType.RUN, r"\b(run|trigger|execute|sync)\b"),
         (IntentType.SKIP, r"\b(skip)\b"),
         (IntentType.RESTART, r"\b(restart|rerun|retry)\b"),
+        (IntentType.CREATE, r"\b(create|add|new|set up|setup)\b"),
         # Information
         (IntentType.STATUS, r"\b(status|state|health|check)\b"),
         (IntentType.LIST, r"\b(list|show|display|get all|what are)\b"),
         # Help
-        (IntentType.HELP, r"\b(help|hi|hello|hey|how do|what can|guide)\b"),
+        (IntentType.HELP, r"\b(help|hi|hello|hey|how do|guide)\b"),
     ]
 
     # Name extraction patterns
@@ -146,6 +151,10 @@ class IntentParser:
         Simple queries (like "list pipelines") can be handled directly.
         Complex queries need LLM for understanding context.
         """
+        # Capabilities query can be handled directly
+        if intent.intent_type == IntentType.CAPABILITIES:
+            return False
+
         # Questions always need LLM
         if intent.intent_type == IntentType.QUESTION:
             return True
@@ -159,7 +168,7 @@ class IntentParser:
             return True
 
         # Actions without a clear target need LLM
-        if intent.intent_type in (IntentType.PAUSE, IntentType.RESUME, IntentType.RUN):
+        if intent.intent_type in (IntentType.PAUSE, IntentType.RESUME, IntentType.RUN, IntentType.CREATE):
             if not intent.resource_name and not intent.resource_type:
                 return True
 
@@ -186,12 +195,20 @@ class IntentParser:
             (IntentType.LIST, "destination"): "list_destinations",
             (IntentType.LIST, "model"): "list_models",
             (IntentType.LIST, "workflow"): "list_workflows",
+            (IntentType.LIST, "object"): "list_objects",
             (IntentType.STATUS, "pipeline"): "get_pipeline",
             (IntentType.PAUSE, "pipeline"): "pause_pipeline",
+            (IntentType.PAUSE, "object"): "pause_object",
             (IntentType.RESUME, "pipeline"): "resume_pipeline",
+            (IntentType.RESUME, "object"): "resume_object",
             (IntentType.RUN, "pipeline"): "run_pipeline",
             (IntentType.RUN, "model"): "run_model",
             (IntentType.RUN, "workflow"): "run_workflow",
+            (IntentType.SKIP, "object"): "skip_object",
+            (IntentType.RESTART, "object"): "restart_object",
+            (IntentType.CREATE, "pipeline"): "create_pipeline",
+            (IntentType.CREATE, "destination"): "create_destination",
+            (IntentType.CREATE, "model"): "create_model",
         }
 
         key = (intent.intent_type, intent.resource_type)

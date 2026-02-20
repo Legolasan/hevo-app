@@ -19,6 +19,66 @@ from hevo_assistant.api.models import get_model_operations, get_workflow_operati
 console = Console()
 
 
+# Patterns for requests that are not supported via API
+UNSUPPORTED_PATTERNS = [
+    (
+        r"\b(delete|remove)\s+(my\s+)?destination",
+        "Deleting destinations is not available via the API for safety reasons. "
+        "Please use the Hevo dashboard to delete destinations."
+    ),
+    (
+        r"\b(change|update|reset)\s+(my\s+)?password",
+        "Password changes are not supported via the API. "
+        "Please use the Hevo dashboard or the password reset feature."
+    ),
+    (
+        r"\b(billing|invoice|payment|subscription|plan)",
+        "Billing and subscription management is not available via the API. "
+        "Please visit the Hevo dashboard or contact support."
+    ),
+    (
+        r"\b(export|download)\s+(my\s+)?data",
+        "Direct data export is not supported. Your data is synced to your "
+        "destination where you can query it directly."
+    ),
+    (
+        r"\bsnowflake\b.{0,20}\b(as\s+)?source\b",
+        "Snowflake cannot be used as a data source. "
+        "It's only supported as a destination. "
+        "Check docs.hevodata.com for supported source connectors."
+    ),
+    (
+        r"\bfrom\s+snowflake\b",
+        "Snowflake cannot be used as a source connector. "
+        "Hevo supports Snowflake only as a destination."
+    ),
+    (
+        r"\bdatabricks\b.{0,20}\b(as\s+)?source\b",
+        "Databricks cannot be used as a data source. "
+        "It's only supported as a destination."
+    ),
+]
+
+
+def check_unsupported_query(query: str) -> Optional[str]:
+    """
+    Check if the query is asking for something not supported.
+
+    Args:
+        query: User's query text
+
+    Returns:
+        Error message if unsupported, None if supported
+    """
+    query_lower = query.lower()
+
+    for pattern, message in UNSUPPORTED_PATTERNS:
+        if re.search(pattern, query_lower, re.IGNORECASE):
+            return message
+
+    return None
+
+
 @dataclass
 class ActionResult:
     """Result of executing an action."""

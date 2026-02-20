@@ -27,6 +27,12 @@ def process_query(query: str, cfg: Config, conversation_history: list = None) ->
     """
     Process a user query through the full RAG → LLM → Agent pipeline.
 
+    Includes:
+    - Capability discovery ("what can I do?")
+    - Unsupported request handling
+    - Prerequisites validation
+    - Follow-up suggestions
+
     Args:
         query: User's natural language query
         cfg: Application configuration
@@ -35,16 +41,43 @@ def process_query(query: str, cfg: Config, conversation_history: list = None) ->
     Returns:
         Response message to display
     """
-    from hevo_assistant.agent import get_action_executor, get_intent_parser, get_response_formatter
+    from hevo_assistant.agent import (
+        get_action_executor,
+        get_intent_parser,
+        get_response_formatter,
+        get_followup_suggester,
+        check_unsupported_query,
+        IntentType,
+    )
+    from hevo_assistant.domain.capabilities import format_capabilities_list
     from hevo_assistant.llm import get_llm
     from hevo_assistant.rag import get_retriever
 
     intent_parser = get_intent_parser()
     action_executor = get_action_executor()
     formatter = get_response_formatter()
+    followup_suggester = get_followup_suggester()
 
-    # Parse intent for hints
+    # Parse intent first
     intent = intent_parser.parse(query)
+
+    # Handle capability discovery directly
+    if intent.intent_type == IntentType.CAPABILITIES:
+        capabilities_text = format_capabilities_list()
+        from hevo_assistant.agent.responses import FormattedResponse
+        response = FormattedResponse(text=capabilities_text)
+        formatter.display(response)
+        return capabilities_text
+
+    # Check for unsupported requests
+    unsupported_msg = check_unsupported_query(query)
+    if unsupported_msg:
+        from hevo_assistant.agent.responses import FormattedResponse
+        response = FormattedResponse(text=f"I'm sorry, {unsupported_msg}")
+        formatter.display(response)
+        return unsupported_msg
+
+    # Get intent hint for LLM
     intent_hint = intent_parser.to_action_hint(intent)
 
     # Retrieve relevant context from RAG
@@ -81,9 +114,27 @@ def process_query(query: str, cfg: Config, conversation_history: list = None) ->
     # Check if LLM requested an action
     action_result = action_executor.execute_from_response(llm_response)
 
+    # Get follow-up suggestions if action was executed
+    followup_text = ""
+    if action_result:
+        action = action_executor.parse_action(llm_response)
+        if action:
+            action_name = action.get("action", "")
+            followups = followup_suggester.get_followups(
+                action_name,
+                action_result.success,
+                action_result.data
+            )
+            if followups:
+                followup_text = followup_suggester.format_followups(followups)
+
     # Format and display response
+    response_text = llm_response
+    if followup_text:
+        response_text = llm_response + "\n" + followup_text
+
     response = formatter.format_chat_response(
-        llm_response=llm_response,
+        llm_response=response_text,
         action_result=action_result,
         citations=citations,
     )
