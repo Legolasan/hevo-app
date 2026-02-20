@@ -177,6 +177,138 @@ class PipelineOperations:
         """Restart an object in a pipeline."""
         return self.client.restart_object(pipeline_id, object_name)
 
+    def include_object(self, pipeline_id: str, object_name: str) -> dict:
+        """Include a previously skipped object."""
+        return self.client.include_object(pipeline_id, object_name)
+
+    def create(
+        self,
+        source_type: str,
+        source_config: dict,
+        destination_id: int,
+        name: Optional[str] = None,
+        auto_mapping: str = "ENABLED",
+    ) -> dict:
+        """
+        Create a new pipeline.
+
+        Args:
+            source_type: Source type (MYSQL, POSTGRES, etc.)
+            source_config: Source connection configuration
+            destination_id: ID of the destination
+            name: Optional pipeline name
+            auto_mapping: Auto-mapping mode
+
+        Returns:
+            Created pipeline data
+        """
+        return self.client.create_pipeline(
+            source_type=source_type,
+            source_config=source_config,
+            destination_id=destination_id,
+            source_name=name,
+            auto_mapping=auto_mapping,
+        )
+
+    def delete(
+        self,
+        pipeline_id: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> dict:
+        """
+        Delete a pipeline.
+
+        Args:
+            pipeline_id: Pipeline ID
+            name: Pipeline name (used if ID not provided)
+
+        Returns:
+            Deletion result
+        """
+        if not pipeline_id and name:
+            pipeline = self.client.get_pipeline_by_name(name)
+            if not pipeline:
+                raise ValueError(f"Pipeline not found: {name}")
+            pipeline_id = pipeline.get("id")
+
+        if not pipeline_id:
+            raise ValueError("Either pipeline_id or name is required")
+
+        return self.client.delete_pipeline(pipeline_id)
+
+    def update_priority(
+        self,
+        priority: str,
+        pipeline_id: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> dict:
+        """
+        Update pipeline priority.
+
+        Args:
+            priority: Priority level (HIGH, NORMAL, LOW)
+            pipeline_id: Pipeline ID
+            name: Pipeline name (used if ID not provided)
+
+        Returns:
+            Updated pipeline data
+        """
+        if not pipeline_id and name:
+            pipeline = self.client.get_pipeline_by_name(name)
+            if not pipeline:
+                raise ValueError(f"Pipeline not found: {name}")
+            pipeline_id = pipeline.get("id")
+
+        if not pipeline_id:
+            raise ValueError("Either pipeline_id or name is required")
+
+        return self.client.update_pipeline_priority(pipeline_id, priority.upper())
+
+    def get_schedule(
+        self,
+        pipeline_id: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> dict:
+        """Get pipeline schedule."""
+        if not pipeline_id and name:
+            pipeline = self.client.get_pipeline_by_name(name)
+            if not pipeline:
+                raise ValueError(f"Pipeline not found: {name}")
+            pipeline_id = pipeline.get("id")
+
+        if not pipeline_id:
+            raise ValueError("Either pipeline_id or name is required")
+
+        return self.client.get_pipeline_schedule(pipeline_id)
+
+    def update_schedule(
+        self,
+        schedule_config: dict,
+        pipeline_id: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> dict:
+        """
+        Update pipeline schedule.
+
+        Args:
+            schedule_config: Schedule configuration (e.g., {"type": "INTERVAL", "value": 15})
+            pipeline_id: Pipeline ID
+            name: Pipeline name (used if ID not provided)
+
+        Returns:
+            Updated schedule data
+        """
+        if not pipeline_id and name:
+            pipeline = self.client.get_pipeline_by_name(name)
+            if not pipeline:
+                raise ValueError(f"Pipeline not found: {name}")
+            pipeline_id = pipeline.get("id")
+
+        if not pipeline_id:
+            raise ValueError("Either pipeline_id or name is required")
+
+        return self.client.update_pipeline_schedule(pipeline_id, schedule_config)
+
 
 def get_pipeline_operations() -> PipelineOperations:
     """Get a PipelineOperations instance."""

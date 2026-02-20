@@ -63,6 +63,14 @@ class ModelOperations:
         models = self.client.list_models()
         return [ModelInfo.from_api(m) for m in models]
 
+    def get(self, model_id: str) -> Optional[ModelInfo]:
+        """Get model by ID."""
+        try:
+            data = self.client.get_model(model_id)
+            return ModelInfo.from_api(data)
+        except Exception:
+            return None
+
     def run_now(self, model_id: str) -> dict:
         """Run a model immediately."""
         return self.client.run_model(model_id)
@@ -75,6 +83,140 @@ class ModelOperations:
                 return model
         return None
 
+    def create(
+        self,
+        destination_id: int,
+        name: str,
+        source_query: str,
+        target_table: Optional[str] = None,
+        load_type: str = "FULL_LOAD",
+    ) -> dict:
+        """
+        Create a new model.
+
+        Args:
+            destination_id: ID of the destination
+            name: Model name
+            source_query: SQL query for the model
+            target_table: Target table name (defaults to model name)
+            load_type: Load type (FULL_LOAD or INCREMENTAL)
+
+        Returns:
+            Created model data
+        """
+        return self.client.create_model(
+            destination_id=destination_id,
+            name=name,
+            source_query=source_query,
+            target_table=target_table,
+            load_type=load_type,
+        )
+
+    def update(
+        self,
+        model_id: Optional[str] = None,
+        name: Optional[str] = None,
+        new_name: Optional[str] = None,
+        source_query: Optional[str] = None,
+        target_table: Optional[str] = None,
+    ) -> dict:
+        """
+        Update a model.
+
+        Args:
+            model_id: Model ID
+            name: Model name (used if ID not provided)
+            new_name: New name for the model
+            source_query: New SQL query
+            target_table: New target table
+
+        Returns:
+            Updated model data
+        """
+        if not model_id and name:
+            model = self.get_by_name(name)
+            if not model:
+                raise ValueError(f"Model not found: {name}")
+            model_id = model.id
+
+        if not model_id:
+            raise ValueError("Either model_id or name is required")
+
+        return self.client.update_model(
+            model_id=model_id,
+            name=new_name,
+            source_query=source_query,
+            target_table=target_table,
+        )
+
+    def delete(
+        self,
+        model_id: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> dict:
+        """Delete a model."""
+        if not model_id and name:
+            model = self.get_by_name(name)
+            if not model:
+                raise ValueError(f"Model not found: {name}")
+            model_id = model.id
+
+        if not model_id:
+            raise ValueError("Either model_id or name is required")
+
+        return self.client.delete_model(model_id)
+
+    def pause(
+        self,
+        model_id: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> dict:
+        """Pause a model."""
+        if not model_id and name:
+            model = self.get_by_name(name)
+            if not model:
+                raise ValueError(f"Model not found: {name}")
+            model_id = model.id
+
+        if not model_id:
+            raise ValueError("Either model_id or name is required")
+
+        return self.client.update_model_status(model_id, "PAUSED")
+
+    def resume(
+        self,
+        model_id: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> dict:
+        """Resume a paused model."""
+        if not model_id and name:
+            model = self.get_by_name(name)
+            if not model:
+                raise ValueError(f"Model not found: {name}")
+            model_id = model.id
+
+        if not model_id:
+            raise ValueError("Either model_id or name is required")
+
+        return self.client.update_model_status(model_id, "ACTIVE")
+
+    def reset(
+        self,
+        model_id: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> dict:
+        """Reset a model (clear processed data)."""
+        if not model_id and name:
+            model = self.get_by_name(name)
+            if not model:
+                raise ValueError(f"Model not found: {name}")
+            model_id = model.id
+
+        if not model_id:
+            raise ValueError("Either model_id or name is required")
+
+        return self.client.reset_model(model_id)
+
 
 class WorkflowOperations:
     """High-level workflow operations."""
@@ -86,6 +228,14 @@ class WorkflowOperations:
         """List all workflows."""
         workflows = self.client.list_workflows()
         return [WorkflowInfo.from_api(w) for w in workflows]
+
+    def get(self, workflow_id: str) -> Optional[WorkflowInfo]:
+        """Get workflow by ID."""
+        try:
+            data = self.client.get_workflow(workflow_id)
+            return WorkflowInfo.from_api(data)
+        except Exception:
+            return None
 
     def run_now(self, workflow_id: str) -> dict:
         """Run a workflow immediately."""

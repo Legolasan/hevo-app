@@ -83,6 +83,37 @@ class DestinationOperations:
 
         return summary
 
+    def create(
+        self,
+        dest_type: str,
+        name: str,
+        config: dict,
+    ) -> dict:
+        """
+        Create a new destination.
+
+        Args:
+            dest_type: Destination type (SNOWFLAKE, BIGQUERY, POSTGRES, etc.)
+            name: Display name for the destination
+            config: Connection configuration
+
+        Returns:
+            Created destination data
+        """
+        return self.client.create_destination(dest_type, name, config)
+
+    def get_table_stats(
+        self,
+        destination_id: str,
+        table_name: str,
+    ) -> dict:
+        """Get statistics for a table in the destination."""
+        return self.client.get_destination_table_stats(destination_id, table_name)
+
+    def load_now(self, destination_id: str) -> dict:
+        """Load events to destination immediately."""
+        return self.client.load_destination(destination_id)
+
 
 def get_destination_operations() -> DestinationOperations:
     """Get a DestinationOperations instance."""

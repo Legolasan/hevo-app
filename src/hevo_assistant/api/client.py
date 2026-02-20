@@ -237,6 +237,71 @@ class HevoClient:
         """Run a pipeline immediately."""
         return self.post(f"/pipelines/{pipeline_id}/run-now")
 
+    def create_pipeline(
+        self,
+        source_type: str,
+        source_config: dict,
+        destination_id: int,
+        source_name: Optional[str] = None,
+        auto_mapping: str = "ENABLED",
+    ) -> dict:
+        """
+        Create a new pipeline.
+
+        Args:
+            source_type: Type of source (e.g., MYSQL, POSTGRES, SALESFORCE)
+            source_config: Source connection configuration
+            destination_id: ID of the destination to connect to
+            source_name: Optional name for the pipeline
+            auto_mapping: Auto-mapping mode (ENABLED, DISABLED)
+
+        Returns:
+            Created pipeline data
+        """
+        payload = {
+            "source_type": source_type,
+            "source_config": source_config,
+            "destination_id": destination_id,
+            "auto_mapping": auto_mapping,
+        }
+        if source_name:
+            payload["source_name"] = source_name
+        return self.post("/pipelines", json=payload)
+
+    def delete_pipeline(self, pipeline_id: str) -> dict:
+        """Delete a pipeline."""
+        return self.delete(f"/pipelines/{pipeline_id}")
+
+    def update_pipeline_priority(self, pipeline_id: str, priority: str) -> dict:
+        """
+        Update pipeline priority.
+
+        Args:
+            pipeline_id: Pipeline ID
+            priority: Priority level (HIGH, NORMAL, LOW)
+
+        Returns:
+            Updated pipeline data
+        """
+        return self.put(f"/pipelines/{pipeline_id}/priority", json={"priority": priority})
+
+    def get_pipeline_schedule(self, pipeline_id: str) -> dict:
+        """Get pipeline schedule configuration."""
+        return self.get(f"/pipelines/{pipeline_id}/schedule")
+
+    def update_pipeline_schedule(self, pipeline_id: str, schedule_config: dict) -> dict:
+        """
+        Update pipeline schedule.
+
+        Args:
+            pipeline_id: Pipeline ID
+            schedule_config: Schedule configuration (type, frequency, etc.)
+
+        Returns:
+            Updated schedule data
+        """
+        return self.put(f"/pipelines/{pipeline_id}/schedule", json=schedule_config)
+
     def get_pipeline_objects(
         self, pipeline_id: str, status: Optional[str] = None
     ) -> list[dict]:
@@ -264,6 +329,14 @@ class HevoClient:
     def restart_object(self, pipeline_id: str, object_name: str) -> dict:
         """Restart an object."""
         return self.post(f"/pipelines/{pipeline_id}/objects/{object_name}/restart")
+
+    def include_object(self, pipeline_id: str, object_name: str) -> dict:
+        """Include a previously skipped object."""
+        return self.post(f"/pipelines/{pipeline_id}/objects/{object_name}/include")
+
+    def get_object(self, pipeline_id: str, object_name: str) -> dict:
+        """Get details for a specific object in a pipeline."""
+        return self.get(f"/pipelines/{pipeline_id}/objects/{object_name}")
 
     # ==================== Destination Operations ====================
 
@@ -293,6 +366,41 @@ class HevoClient:
         """Get destination details."""
         return self.get(f"/destinations/{destination_id}")
 
+    def create_destination(
+        self,
+        dest_type: str,
+        name: str,
+        config: dict,
+    ) -> dict:
+        """
+        Create a new destination.
+
+        Args:
+            dest_type: Destination type (SNOWFLAKE, BIGQUERY, POSTGRES, etc.)
+            name: Display name for the destination
+            config: Connection configuration
+
+        Returns:
+            Created destination data
+        """
+        return self.post("/destinations", json={
+            "type": dest_type,
+            "name": name,
+            "config": config,
+        })
+
+    def get_destination_table_stats(
+        self,
+        destination_id: str,
+        table_name: str,
+    ) -> dict:
+        """Get statistics for a table in a destination."""
+        return self.get(f"/destinations/{destination_id}/tables/{table_name}/stats")
+
+    def load_destination(self, destination_id: str) -> dict:
+        """Load events to destination immediately."""
+        return self.post(f"/destinations/{destination_id}/load-now")
+
     # ==================== Model Operations ====================
 
     def list_models(self, limit: int = 500) -> list[dict]:
@@ -317,9 +425,97 @@ class HevoClient:
 
         return all_models[:limit]
 
+    def get_model(self, model_id: str) -> dict:
+        """Get model details."""
+        return self.get(f"/models/{model_id}")
+
     def run_model(self, model_id: str) -> dict:
         """Run a model immediately."""
         return self.post(f"/models/{model_id}/run-now")
+
+    def create_model(
+        self,
+        destination_id: int,
+        name: str,
+        source_query: str,
+        target_table: Optional[str] = None,
+        load_type: str = "FULL_LOAD",
+    ) -> dict:
+        """
+        Create a new model.
+
+        Args:
+            destination_id: ID of the destination
+            name: Model name
+            source_query: SQL query for the model
+            target_table: Target table name (defaults to model name)
+            load_type: Load type (FULL_LOAD or INCREMENTAL)
+
+        Returns:
+            Created model data
+        """
+        payload = {
+            "destination_id": destination_id,
+            "name": name,
+            "source_query": source_query,
+            "load_type": load_type,
+        }
+        if target_table:
+            payload["target_table"] = target_table
+        return self.post("/models", json=payload)
+
+    def update_model(
+        self,
+        model_id: str,
+        name: Optional[str] = None,
+        source_query: Optional[str] = None,
+        target_table: Optional[str] = None,
+    ) -> dict:
+        """
+        Update a model.
+
+        Args:
+            model_id: Model ID
+            name: New name (optional)
+            source_query: New SQL query (optional)
+            target_table: New target table (optional)
+
+        Returns:
+            Updated model data
+        """
+        payload = {}
+        if name:
+            payload["name"] = name
+        if source_query:
+            payload["source_query"] = source_query
+        if target_table:
+            payload["target_table"] = target_table
+        return self.put(f"/models/{model_id}", json=payload)
+
+    def update_model_status(self, model_id: str, status: str) -> dict:
+        """
+        Update model status (pause/resume).
+
+        Args:
+            model_id: Model ID
+            status: Status (ACTIVE, PAUSED)
+
+        Returns:
+            Updated model data
+        """
+        return self.put(f"/models/{model_id}/activity-status", json={"status": status})
+
+    def delete_model(self, model_id: str) -> dict:
+        """Delete a model."""
+        return self.delete(f"/models/{model_id}")
+
+    def reset_model(self, model_id: str) -> dict:
+        """Reset a model (clear processed data)."""
+        return self.delete(f"/models/{model_id}/reset")
+
+    def update_model_schedule(self, model_id: str, schedule_config: dict) -> dict:
+        """Update model schedule."""
+        return self.put(f"/models/{model_id}/schedule", json=schedule_config)
 
     # ==================== Workflow Operations ====================
 
@@ -345,9 +541,135 @@ class HevoClient:
 
         return all_workflows[:limit]
 
+    def get_workflow(self, workflow_id: str) -> dict:
+        """Get workflow details."""
+        return self.get(f"/workflows/{workflow_id}")
+
     def run_workflow(self, workflow_id: str) -> dict:
         """Run a workflow immediately."""
         return self.post(f"/workflows/{workflow_id}/run-now")
+
+    # ==================== Transformation Operations ====================
+
+    def get_transformation(self, pipeline_id: str) -> dict:
+        """Get transformation code for a pipeline."""
+        return self.get(f"/pipelines/{pipeline_id}/transformations")
+
+    def update_transformation(self, pipeline_id: str, code: str) -> dict:
+        """
+        Update transformation code.
+
+        Args:
+            pipeline_id: Pipeline ID
+            code: Transformation code (Python)
+
+        Returns:
+            Updated transformation data
+        """
+        return self.put(f"/pipelines/{pipeline_id}/transformations", json={"code": code})
+
+    def test_transformation(self, pipeline_id: str, sample_data: Optional[dict] = None) -> dict:
+        """
+        Test transformation code with sample data.
+
+        Args:
+            pipeline_id: Pipeline ID
+            sample_data: Optional sample data to test with
+
+        Returns:
+            Test results
+        """
+        payload = {}
+        if sample_data:
+            payload["sample_data"] = sample_data
+        return self.post(f"/pipelines/{pipeline_id}/transformations/test", json=payload)
+
+    def get_transformation_sample(self, pipeline_id: str) -> dict:
+        """Get sample data for transformation testing."""
+        return self.get(f"/pipelines/{pipeline_id}/transformations/sample")
+
+    # ==================== Event Type Operations ====================
+
+    def list_event_types(self, pipeline_id: str) -> list[dict]:
+        """List all event types in a pipeline."""
+        response = self.get(f"/pipelines/{pipeline_id}/event-types")
+        return response.get("data", [])
+
+    def skip_event_type(self, pipeline_id: str, event_type: str) -> dict:
+        """Skip an event type."""
+        return self.post(f"/pipelines/{pipeline_id}/event-types/{event_type}/skip")
+
+    def include_event_type(self, pipeline_id: str, event_type: str) -> dict:
+        """Include a previously skipped event type."""
+        return self.post(f"/pipelines/{pipeline_id}/event-types/{event_type}/include")
+
+    # ==================== Schema Mapping Operations ====================
+
+    def update_auto_mapping(self, pipeline_id: str, enabled: bool) -> dict:
+        """Enable or disable auto-mapping for a pipeline."""
+        return self.put(
+            f"/pipelines/{pipeline_id}/auto-mapping",
+            json={"enabled": enabled}
+        )
+
+    def get_schema_mapping(self, pipeline_id: str, event_type: str) -> dict:
+        """Get schema mapping for an event type."""
+        return self.get(f"/pipelines/{pipeline_id}/mappings/{event_type}")
+
+    def update_schema_mapping(
+        self,
+        pipeline_id: str,
+        event_type: str,
+        mapping: dict,
+    ) -> dict:
+        """Update schema mapping for an event type."""
+        return self.put(
+            f"/pipelines/{pipeline_id}/mappings/{event_type}",
+            json=mapping
+        )
+
+    # ==================== User Management Operations ====================
+
+    def list_users(self) -> list[dict]:
+        """List all users in the team."""
+        response = self.get("/accounts/users")
+        return response.get("data", [])
+
+    def invite_user(self, email: str, role: str = "MEMBER") -> dict:
+        """
+        Invite a user to the team.
+
+        Args:
+            email: User's email address
+            role: Role (OWNER, ADMIN, MEMBER, VIEWER)
+
+        Returns:
+            Created user data
+        """
+        return self.post("/accounts/users", json={"email": email, "role": role})
+
+    def update_user_role(self, user_id: str, role: str) -> dict:
+        """Update a user's role."""
+        return self.put(f"/accounts/users/{user_id}", json={"role": role})
+
+    def delete_user(self, user_id: str) -> dict:
+        """Remove a user from the team."""
+        return self.delete(f"/accounts/users/{user_id}")
+
+    # ==================== OAuth Account Operations ====================
+
+    def list_oauth_accounts(self) -> list[dict]:
+        """List all OAuth accounts."""
+        response = self.get("/oauth-accounts")
+        return response.get("data", [])
+
+    def get_oauth_account(self, account_id: str) -> dict:
+        """Get OAuth account details."""
+        return self.get(f"/oauth-accounts/{account_id}")
+
+    def delete_oauth_account(self, account_id: str) -> dict:
+        """Remove an OAuth account."""
+        return self.delete(f"/oauth-accounts/{account_id}")
 
 
 def get_client() -> HevoClient:

@@ -114,7 +114,7 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
             "Create pipeline from Postgres to BigQuery",
         ],
         follow_ups=["list_objects", "run_pipeline", "get_pipeline"],
-        implemented=False,  # Requires complex multi-step flow
+        implemented=True,
     ),
     "delete_pipeline": ActionDefinition(
         name="delete_pipeline",
@@ -124,10 +124,12 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         endpoint="/pipelines/{id}",
         parameters=[
             Parameter("id", "Pipeline ID", required=True, example="12345"),
+            Parameter("name", "Pipeline name", required=False, example="Salesforce_to_Snowflake"),
+            Parameter("confirmed", "Confirmation flag", required=True, param_type="boolean"),
         ],
         examples=["Delete the pipeline", "Remove my old pipeline"],
         follow_ups=["list_pipelines"],
-        implemented=False,
+        implemented=True,
     ),
     "pause_pipeline": ActionDefinition(
         name="pause_pipeline",
@@ -187,12 +189,13 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         method="PUT",
         endpoint="/pipelines/{id}/schedule",
         parameters=[
-            Parameter("id", "Pipeline ID", required=True, example="12345"),
+            Parameter("id", "Pipeline ID", required=False, example="12345"),
+            Parameter("name", "Pipeline name", required=False, example="Salesforce_to_Snowflake"),
             Parameter("schedule", "Schedule configuration", required=True),
         ],
         examples=["Change pipeline schedule", "Update sync frequency"],
         follow_ups=["get_pipeline"],
-        implemented=False,
+        implemented=True,
     ),
     "update_pipeline_priority": ActionDefinition(
         name="update_pipeline_priority",
@@ -201,12 +204,27 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         method="PUT",
         endpoint="/pipelines/{id}/priority",
         parameters=[
-            Parameter("id", "Pipeline ID", required=True, example="12345"),
+            Parameter("id", "Pipeline ID", required=False, example="12345"),
+            Parameter("name", "Pipeline name", required=False, example="Salesforce_to_Snowflake"),
             Parameter("priority", "Priority level", required=True, example="HIGH"),
         ],
         examples=["Set pipeline priority to high", "Change priority"],
         follow_ups=["get_pipeline"],
-        implemented=False,
+        implemented=True,
+    ),
+    "get_pipeline_schedule": ActionDefinition(
+        name="get_pipeline_schedule",
+        description="Get pipeline schedule configuration",
+        category=ActionCategory.PIPELINES,
+        method="GET",
+        endpoint="/pipelines/{id}/schedule",
+        parameters=[
+            Parameter("id", "Pipeline ID", required=False, example="12345"),
+            Parameter("name", "Pipeline name", required=False, example="Salesforce_to_Snowflake"),
+        ],
+        examples=["Show pipeline schedule", "Get sync frequency"],
+        follow_ups=["update_pipeline_schedule"],
+        implemented=True,
     ),
 
     # =========================================================================
@@ -284,6 +302,21 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         ],
         examples=["Include the audit_logs table again", "Start syncing this table"],
         follow_ups=["list_objects", "restart_object"],
+        implemented=True,
+    ),
+    "get_object": ActionDefinition(
+        name="get_object",
+        description="Get details for a specific object",
+        category=ActionCategory.OBJECTS,
+        method="GET",
+        endpoint="/pipelines/{id}/objects/{name}",
+        parameters=[
+            Parameter("pipeline_id", "Pipeline ID", required=True, example="12345"),
+            Parameter("object_name", "Object/table name", required=True, example="users"),
+        ],
+        examples=["Show object details", "Get info about users table"],
+        follow_ups=["pause_object", "restart_object"],
+        implemented=True,
     ),
     "restart_object": ActionDefinition(
         name="restart_object",
@@ -314,10 +347,11 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         endpoint="/pipelines/{id}/transformations",
         parameters=[
             Parameter("pipeline_id", "Pipeline ID", required=True, example="12345"),
+            Parameter("pipeline_name", "Pipeline name", required=False, example="Salesforce_to_Snowflake"),
         ],
         examples=["Show transformation code", "Get the transformation"],
         follow_ups=["update_transformation", "test_transformation"],
-        implemented=False,
+        implemented=True,
     ),
     "update_transformation": ActionDefinition(
         name="update_transformation",
@@ -331,7 +365,7 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         ],
         examples=["Update the transformation", "Change transformation code"],
         follow_ups=["test_transformation", "get_transformation"],
-        implemented=False,
+        implemented=True,
     ),
     "test_transformation": ActionDefinition(
         name="test_transformation",
@@ -341,10 +375,11 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         endpoint="/pipelines/{id}/transformations/test",
         parameters=[
             Parameter("pipeline_id", "Pipeline ID", required=True, example="12345"),
+            Parameter("sample_data", "Sample data to test with", required=False),
         ],
         examples=["Test the transformation", "Try the transformation"],
         follow_ups=["update_transformation"],
-        implemented=False,
+        implemented=True,
     ),
 
     # =========================================================================
@@ -362,7 +397,7 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         ],
         examples=["Show schema mapping", "Get the mapping"],
         follow_ups=["update_schema_mapping"],
-        implemented=False,
+        implemented=True,
     ),
     "update_schema_mapping": ActionDefinition(
         name="update_schema_mapping",
@@ -377,7 +412,7 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         ],
         examples=["Update schema mapping", "Change the mapping"],
         follow_ups=["get_schema_mapping"],
-        implemented=False,
+        implemented=True,
     ),
     "update_auto_mapping": ActionDefinition(
         name="update_auto_mapping",
@@ -391,7 +426,7 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         ],
         examples=["Enable auto-mapping", "Turn on auto schema mapping"],
         follow_ups=["get_pipeline"],
-        implemented=False,
+        implemented=True,
     ),
 
     # =========================================================================
@@ -405,10 +440,11 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         endpoint="/pipelines/{id}/event-types",
         parameters=[
             Parameter("pipeline_id", "Pipeline ID", required=True, example="12345"),
+            Parameter("pipeline_name", "Pipeline name", required=False, example="Salesforce_to_Snowflake"),
         ],
         examples=["Show event types", "List event types"],
         follow_ups=["skip_event_type"],
-        implemented=False,
+        implemented=True,
     ),
     "skip_event_type": ActionDefinition(
         name="skip_event_type",
@@ -422,7 +458,7 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         ],
         examples=["Skip this event type", "Exclude debug events"],
         follow_ups=["include_event_type", "list_event_types"],
-        implemented=False,
+        implemented=True,
     ),
     "include_event_type": ActionDefinition(
         name="include_event_type",
@@ -436,7 +472,7 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         ],
         examples=["Include this event type", "Start syncing these events"],
         follow_ups=["list_event_types"],
-        implemented=False,
+        implemented=True,
     ),
 
     # =========================================================================
@@ -463,11 +499,12 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         method="GET",
         endpoint="/destinations/{id}",
         parameters=[
-            Parameter("id", "Destination ID", required=True, example="123"),
+            Parameter("id", "Destination ID", required=False, example="123"),
+            Parameter("name", "Destination name", required=False, example="Production_Snowflake"),
         ],
         examples=["Show destination details", "Get my Snowflake destination"],
         follow_ups=["list_destinations", "get_destination_stats"],
-        implemented=False,
+        implemented=True,
     ),
     "create_destination": ActionDefinition(
         name="create_destination",
@@ -482,7 +519,7 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         ],
         examples=["Create a new destination", "Add Snowflake destination"],
         follow_ups=["list_destinations"],
-        implemented=False,
+        implemented=True,
     ),
     "get_destination_stats": ActionDefinition(
         name="get_destination_stats",
@@ -496,7 +533,7 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         ],
         examples=["Show table stats", "Get stats for users table"],
         follow_ups=["list_destinations"],
-        implemented=False,
+        implemented=True,
     ),
     "load_destination": ActionDefinition(
         name="load_destination",
@@ -509,7 +546,7 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         ],
         examples=["Load data to destination now", "Flush to destination"],
         follow_ups=["list_destinations"],
-        implemented=False,
+        implemented=True,
     ),
 
     # =========================================================================
@@ -536,11 +573,12 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         method="GET",
         endpoint="/models/{id}",
         parameters=[
-            Parameter("id", "Model ID", required=True, example="456"),
+            Parameter("id", "Model ID", required=False, example="456"),
+            Parameter("name", "Model name", required=False, example="daily_summary"),
         ],
         examples=["Show model details", "Get my revenue model"],
         follow_ups=["run_model", "update_model"],
-        implemented=False,
+        implemented=True,
     ),
     "create_model": ActionDefinition(
         name="create_model",
@@ -552,11 +590,72 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
             Parameter("destination_id", "Destination ID", required=True, example="123"),
             Parameter("query", "SQL query", required=True),
             Parameter("name", "Model name", required=True, example="daily_summary"),
-            Parameter("target_table", "Target table name", required=True, example="daily_sales"),
+            Parameter("target_table", "Target table name", required=False, example="daily_sales"),
+            Parameter("load_type", "Load type (FULL_LOAD or INCREMENTAL)", required=False, example="FULL_LOAD"),
         ],
         examples=["Create a new model", "Add a model"],
         follow_ups=["run_model", "list_models"],
-        implemented=False,
+        implemented=True,
+    ),
+    "update_model": ActionDefinition(
+        name="update_model",
+        description="Update a model",
+        category=ActionCategory.MODELS,
+        method="PUT",
+        endpoint="/models/{id}",
+        parameters=[
+            Parameter("id", "Model ID", required=False, example="456"),
+            Parameter("name", "Model name", required=False, example="daily_summary"),
+            Parameter("new_name", "New model name", required=False),
+            Parameter("query", "New SQL query", required=False),
+            Parameter("target_table", "New target table", required=False),
+        ],
+        examples=["Update the model", "Change model query"],
+        follow_ups=["run_model", "get_model"],
+        implemented=True,
+    ),
+    "delete_model": ActionDefinition(
+        name="delete_model",
+        description="Delete a model",
+        category=ActionCategory.MODELS,
+        method="DELETE",
+        endpoint="/models/{id}",
+        parameters=[
+            Parameter("id", "Model ID", required=False, example="456"),
+            Parameter("name", "Model name", required=False, example="daily_summary"),
+            Parameter("confirmed", "Confirmation flag", required=True, param_type="boolean"),
+        ],
+        examples=["Delete the model", "Remove my old model"],
+        follow_ups=["list_models"],
+        implemented=True,
+    ),
+    "pause_model": ActionDefinition(
+        name="pause_model",
+        description="Pause a model",
+        category=ActionCategory.MODELS,
+        method="PUT",
+        endpoint="/models/{id}/activity-status",
+        parameters=[
+            Parameter("id", "Model ID", required=False, example="456"),
+            Parameter("name", "Model name", required=False, example="daily_summary"),
+        ],
+        examples=["Pause the model", "Stop running the model"],
+        follow_ups=["resume_model", "list_models"],
+        implemented=True,
+    ),
+    "resume_model": ActionDefinition(
+        name="resume_model",
+        description="Resume a paused model",
+        category=ActionCategory.MODELS,
+        method="PUT",
+        endpoint="/models/{id}/activity-status",
+        parameters=[
+            Parameter("id", "Model ID", required=False, example="456"),
+            Parameter("name", "Model name", required=False, example="daily_summary"),
+        ],
+        examples=["Resume the model", "Start the model again"],
+        follow_ups=["run_model", "get_model"],
+        implemented=True,
     ),
     "run_model": ActionDefinition(
         name="run_model",
@@ -582,11 +681,13 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         method="DELETE",
         endpoint="/models/{id}/reset",
         parameters=[
-            Parameter("id", "Model ID", required=True, example="456"),
+            Parameter("id", "Model ID", required=False, example="456"),
+            Parameter("name", "Model name", required=False, example="daily_summary"),
+            Parameter("confirmed", "Confirmation flag", required=True, param_type="boolean"),
         ],
         examples=["Reset the model", "Clear model data"],
         follow_ups=["run_model"],
-        implemented=False,
+        implemented=True,
     ),
 
     # =========================================================================
@@ -613,11 +714,12 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         method="GET",
         endpoint="/workflows/{id}",
         parameters=[
-            Parameter("id", "Workflow ID", required=True, example="789"),
+            Parameter("id", "Workflow ID", required=False, example="789"),
+            Parameter("name", "Workflow name", required=False, example="nightly_etl"),
         ],
         examples=["Show workflow details", "Get my ETL workflow"],
         follow_ups=["run_workflow"],
-        implemented=False,
+        implemented=True,
     ),
     "run_workflow": ActionDefinition(
         name="run_workflow",
@@ -653,7 +755,7 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
             "Who's on my team?",
         ],
         follow_ups=["invite_user"],
-        implemented=False,
+        implemented=True,
     ),
     "invite_user": ActionDefinition(
         name="invite_user",
@@ -663,11 +765,11 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         endpoint="/accounts/users",
         parameters=[
             Parameter("email", "User email", required=True, example="john@company.com"),
-            Parameter("role", "User role", required=True, example="MEMBER"),
+            Parameter("role", "User role (OWNER, ADMIN, MEMBER, VIEWER)", required=False, example="MEMBER"),
         ],
         examples=["Invite john@company.com", "Add a new team member"],
         follow_ups=["list_users"],
-        implemented=False,
+        implemented=True,
     ),
     "update_user_role": ActionDefinition(
         name="update_user_role",
@@ -677,11 +779,11 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         endpoint="/accounts/users/{user_id}",
         parameters=[
             Parameter("user_id", "User ID", required=True, example="user123"),
-            Parameter("role", "New role", required=True, example="ADMIN"),
+            Parameter("role", "New role (OWNER, ADMIN, MEMBER, VIEWER)", required=True, example="ADMIN"),
         ],
         examples=["Make this user an admin", "Change user role"],
         follow_ups=["list_users"],
-        implemented=False,
+        implemented=True,
     ),
     "delete_user": ActionDefinition(
         name="delete_user",
@@ -691,10 +793,11 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         endpoint="/accounts/users/{user_id}",
         parameters=[
             Parameter("user_id", "User ID", required=True, example="user123"),
+            Parameter("confirmed", "Confirmation flag", required=True, param_type="boolean"),
         ],
         examples=["Remove this user", "Delete team member"],
         follow_ups=["list_users"],
-        implemented=False,
+        implemented=True,
     ),
 
     # =========================================================================
@@ -708,8 +811,8 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         endpoint="/oauth-accounts",
         parameters=[],
         examples=["Show OAuth accounts", "List connected accounts"],
-        follow_ups=[],
-        implemented=False,
+        follow_ups=["get_oauth_account"],
+        implemented=True,
     ),
     "get_oauth_account": ActionDefinition(
         name="get_oauth_account",
@@ -722,7 +825,7 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         ],
         examples=["Show OAuth account details"],
         follow_ups=["list_oauth_accounts"],
-        implemented=False,
+        implemented=True,
     ),
     "remove_oauth_account": ActionDefinition(
         name="remove_oauth_account",
@@ -732,10 +835,11 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         endpoint="/oauth-accounts/{id}",
         parameters=[
             Parameter("id", "OAuth account ID", required=True, example="oauth123"),
+            Parameter("confirmed", "Confirmation flag", required=True, param_type="boolean"),
         ],
         examples=["Remove OAuth account", "Disconnect this account"],
         follow_ups=["list_oauth_accounts"],
-        implemented=False,
+        implemented=True,
     ),
 }
 
