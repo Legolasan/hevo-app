@@ -4,6 +4,66 @@ This assistant helps Hevo customers interact with their data pipelines through n
 
 ---
 
+## Release Workflow (MANDATORY)
+
+**After completing any code changes or fixes, you MUST follow this release workflow:**
+
+### 1. Commit and Push to GitHub
+```bash
+# Stage changes
+git add <changed-files>
+
+# Commit with descriptive message
+git commit -m "$(cat <<'EOF'
+<Brief description of changes>
+
+<Detailed bullet points of what was changed>
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+EOF
+)"
+
+# Push to remote
+git push origin main
+```
+
+### 2. Bump Version and Publish to PyPI
+```bash
+# Update version in pyproject.toml (use semantic versioning)
+# - PATCH (0.2.0 -> 0.2.1): Bug fixes
+# - MINOR (0.2.0 -> 0.3.0): New features (backward compatible)
+# - MAJOR (0.2.0 -> 1.0.0): Breaking changes
+
+# Clean, build, and upload
+rm -rf dist/ build/
+source .venv/bin/activate
+python -m build
+TWINE_USERNAME=__token__ TWINE_PASSWORD="<pypi-token>" python -m twine upload dist/*
+
+# Commit version bump
+git add pyproject.toml
+git commit -m "Bump version to X.Y.Z for PyPI release
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+git push origin main
+```
+
+### 3. Update README (if applicable)
+If the changes introduce:
+- New features or capabilities
+- New CLI commands or options
+- Changed installation steps
+- New dependencies
+- Breaking changes
+
+Then update `README.md` with relevant documentation and include it in the commit.
+
+### Package Links
+- **PyPI**: https://pypi.org/project/hevo-assistant/
+- **GitHub**: https://github.com/Legolasan/hevo-app
+
+---
+
 ## Platform Overview
 
 **Hevo** is a no-code data integration platform that moves data from various sources to data warehouses and databases. The core concept is a **Pipeline** - a connection that extracts data from a Source and loads it into a Destination.
