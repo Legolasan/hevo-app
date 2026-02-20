@@ -63,15 +63,19 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
     # =========================================================================
     "list_pipelines": ActionDefinition(
         name="list_pipelines",
-        description="List all pipelines in your account",
+        description="List all pipelines in your account (optionally filter by status)",
         category=ActionCategory.PIPELINES,
         method="GET",
         endpoint="/pipelines",
-        parameters=[],
+        parameters=[
+            Parameter("status", "Filter by status: ACTIVE, PAUSED, or DRAFT", required=False, example="ACTIVE"),
+        ],
         examples=[
             "Show all my pipelines",
             "List pipelines",
             "What pipelines do I have?",
+            "List my active pipelines",
+            "Show paused pipelines",
         ],
         follow_ups=["get_pipeline", "run_pipeline"],
     ),

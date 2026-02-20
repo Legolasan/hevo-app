@@ -44,6 +44,18 @@ You MUST always respond with a JSON ActionDirective in a markdown code block.
 }}
 ```
 
+### When filtering by status (e.g., "list active pipelines"):
+```json
+{{
+  "directive_type": "execute",
+  "action": "list_pipelines",
+  "params": {{"status": "ACTIVE"}},
+  "context": "User wants to see only active pipelines"
+}}
+```
+
+Note: For list_pipelines, pass "status" param with values: "ACTIVE", "PAUSED", or "DRAFT" when the user wants filtered results.
+
 ### When you need more information:
 ```json
 {{
