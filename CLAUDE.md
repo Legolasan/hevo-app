@@ -79,7 +79,8 @@ https://us.hevodata.com/api/public/v2.0/
 
 ### Authentication
 - **Method**: HTTP Basic Authentication
-- **Credentials**: API Key and Secret (generated from Hevo account settings)
+- **Credentials**: API Key and Secret
+- **How to get**: Hevo Dashboard → Profile Settings → Account → API Keys
 - **Header**: `Authorization: Basic <base64(api_key:api_secret)>`
 
 ### Rate Limits

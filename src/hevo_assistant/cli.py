@@ -227,7 +227,7 @@ def setup():
     console.print(
         "Get your API key and secret from: "
         "[link=https://app.hevodata.com/settings/api-keys]"
-        "Hevo Dashboard > Settings > API Keys[/link]\n"
+        "Hevo Dashboard > Profile Settings > Account > API Keys[/link]\n"
     )
 
     api_key = Prompt.ask(
