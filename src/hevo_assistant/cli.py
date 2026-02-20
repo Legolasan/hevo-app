@@ -25,13 +25,13 @@ console = Console()
 
 def process_query(query: str, cfg: Config, conversation_history: list = None) -> str:
     """
-    Process a user query through the full RAG → LLM → Agent pipeline.
+    Process a user query through the multi-agent pipeline.
 
-    Includes:
-    - Capability discovery ("what can I do?")
-    - Unsupported request handling
-    - Prerequisites validation
-    - Follow-up suggestions
+    Uses two-agent architecture:
+    - Coordinator Agent: Understands intent, gathers parameters
+    - Executor Agent: Executes actions via Hevo API
+
+    Falls back to legacy single-agent pipeline if multi-agent is disabled.
 
     Args:
         query: User's natural language query
@@ -40,6 +40,65 @@ def process_query(query: str, cfg: Config, conversation_history: list = None) ->
 
     Returns:
         Response message to display
+    """
+    # Check if multi-agent mode is enabled
+    if cfg.agents.enabled:
+        return _process_query_multiagent(query, cfg, conversation_history)
+    else:
+        return _process_query_legacy(query, cfg, conversation_history)
+
+
+def _process_query_multiagent(query: str, cfg: Config, conversation_history: list = None) -> str:
+    """
+    Process query using multi-agent architecture.
+
+    Flow: User → Coordinator → Executor → Response
+    """
+    from hevo_assistant.agents import AgentOrchestrator
+    from hevo_assistant.rag import get_retriever
+    from hevo_assistant.agent.responses import FormattedResponse, get_response_formatter
+
+    formatter = get_response_formatter()
+
+    # Get RAG context
+    rag_context = ""
+    try:
+        retriever = get_retriever()
+        context_docs = retriever.retrieve(query, n_results=5)
+        rag_context = retriever.format_context(context_docs)
+    except Exception:
+        pass  # Continue without RAG context
+
+    # Process through orchestrator
+    try:
+        orchestrator = AgentOrchestrator()
+        response = orchestrator.process(
+            user_message=query,
+            conversation_history=conversation_history,
+            rag_context=rag_context,
+        )
+
+        # Display response
+        formatted = FormattedResponse(text=response)
+        formatter.display(formatted)
+
+        return response
+
+    except Exception as e:
+        error_msg = f"Error processing query: {str(e)}"
+        formatter.format_error(error_msg)
+        return error_msg
+
+
+def _process_query_legacy(query: str, cfg: Config, conversation_history: list = None) -> str:
+    """
+    Legacy single-agent processing (fallback).
+
+    Includes:
+    - Capability discovery ("what can I do?")
+    - Unsupported request handling
+    - Prerequisites validation
+    - Follow-up suggestions
     """
     from hevo_assistant.agent import (
         get_action_executor,
@@ -301,6 +360,12 @@ def config_show():
         table.add_row("Vector DB Path", cfg.rag.db_path)
         table.add_row("Embedding Model", cfg.rag.embedding_model)
     table.add_row("Last Updated", str(cfg.rag.last_updated) if cfg.rag.last_updated else "[yellow]Never[/yellow]")
+    table.add_row("", "")
+
+    # Agent settings
+    table.add_row("Multi-Agent Mode", "[green]Enabled[/green]" if cfg.agents.enabled else "[yellow]Disabled[/yellow]")
+    table.add_row("Coordinator Model", cfg.agents.coordinator_model)
+    table.add_row("Executor Model", cfg.agents.executor_model)
 
     console.print(table)
 

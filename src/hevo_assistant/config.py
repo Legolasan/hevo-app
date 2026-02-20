@@ -101,12 +101,38 @@ class RAGConfig(BaseModel):
         return True  # Local doesn't need external config
 
 
+class AgentConfig(BaseModel):
+    """Multi-agent system configuration."""
+
+    # Coordinator Agent - handles conversation and intent
+    coordinator_model: str = Field(
+        default="gpt-4", description="Model for Coordinator Agent (smarter reasoning)"
+    )
+    coordinator_temperature: float = Field(
+        default=0.7, ge=0, le=2, description="Temperature for Coordinator Agent"
+    )
+
+    # Executor Agent - handles action execution
+    executor_model: str = Field(
+        default="gpt-3.5-turbo", description="Model for Executor Agent (faster, cheaper)"
+    )
+    executor_temperature: float = Field(
+        default=0.2, ge=0, le=2, description="Temperature for Executor Agent (more deterministic)"
+    )
+
+    # Enable/disable multi-agent mode
+    enabled: bool = Field(
+        default=True, description="Enable multi-agent architecture"
+    )
+
+
 class Config(BaseModel):
     """Main configuration for Hevo Assistant."""
 
     hevo: HevoConfig = Field(default_factory=HevoConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
     rag: RAGConfig = Field(default_factory=RAGConfig)
+    agents: AgentConfig = Field(default_factory=AgentConfig)
 
     @classmethod
     def get_config_dir(cls) -> Path:
@@ -176,6 +202,13 @@ class Config(BaseModel):
                 "last_updated": (
                     self.rag.last_updated.isoformat() if self.rag.last_updated else None
                 ),
+            },
+            "agents": {
+                "coordinator_model": self.agents.coordinator_model,
+                "coordinator_temperature": self.agents.coordinator_temperature,
+                "executor_model": self.agents.executor_model,
+                "executor_temperature": self.agents.executor_temperature,
+                "enabled": self.agents.enabled,
             },
         }
 
