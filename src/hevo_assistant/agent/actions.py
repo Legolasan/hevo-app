@@ -232,12 +232,27 @@ class ActionExecutor:
 
         # Helper to get pipeline name - check multiple possible keys
         def get_name(p: dict) -> str:
-            return (
+            # Try various name fields
+            name = (
                 p.get("name") or
                 p.get("pipeline_name") or
                 p.get("display_name") or
-                f"Pipeline #{p.get('id', 'unknown')}"
+                p.get("title")
             )
+            if name:
+                return str(name)
+            # Fallback: use source type + id
+            source = p.get("source", {})
+            source_name = source.get("display_name") or source.get("name") if isinstance(source, dict) else ""
+            pid = p.get("id", "?")
+            return f"{source_name} Pipeline #{pid}" if source_name else f"Pipeline #{pid}"
+
+        # Helper to get source type display name
+        def get_source_type(p: dict) -> str:
+            source = p.get("source", {})
+            if isinstance(source, dict):
+                return source.get("display_name") or source.get("name") or ""
+            return ""
 
         # Filter by status if requested
         status_filter = params.get("status", "").upper()
@@ -262,8 +277,11 @@ class ActionExecutor:
             lines.append(f"🟢 ACTIVE ({len(active)}):")
             for p in active[:20]:  # Limit to 20 per group
                 name = get_name(p)
-                source = p.get("source", {}).get("type", "")
-                lines.append(f"   • {name}" + (f" [{source}]" if source else ""))
+                source_type = get_source_type(p)
+                if source_type and source_type not in name:
+                    lines.append(f"   • {name} [{source_type}]")
+                else:
+                    lines.append(f"   • {name}")
             if len(active) > 20:
                 lines.append(f"   ... and {len(active) - 20} more")
             lines.append("")

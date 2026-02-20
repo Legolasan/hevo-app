@@ -198,7 +198,14 @@ class AgentOrchestrator:
 
         def get_name(p: dict) -> str:
             """Try multiple possible name keys."""
-            return p.get("name") or p.get("pipeline_name") or p.get("display_name") or ""
+            name = p.get("name") or p.get("pipeline_name") or p.get("display_name") or p.get("title")
+            if name:
+                return str(name)
+            # Fallback: use source type + id
+            source = p.get("source", {})
+            source_name = source.get("display_name") or source.get("name") if isinstance(source, dict) else ""
+            pid = p.get("id", "?")
+            return f"{source_name} #{pid}" if source_name else ""
 
         try:
             from hevo_assistant.api.pipelines import get_pipeline_operations
