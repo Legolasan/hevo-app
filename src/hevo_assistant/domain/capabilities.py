@@ -106,7 +106,12 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
             Parameter("source_type", "Type of source connector", required=True, example="MYSQL"),
             Parameter("source_config", "Source connection configuration", required=True),
             Parameter("destination_id", "ID of the destination", required=True, example="123"),
-            Parameter("name", "Pipeline name", required=False, example="MySQL_to_Snowflake"),
+            Parameter("name", "Pipeline name (source_name)", required=False, example="MySQL_to_Snowflake"),
+            Parameter("auto_mapping", "Auto-mapping mode (ENABLED/DISABLED)", required=False, example="ENABLED"),
+            Parameter("destination_table_prefix", "Prefix for destination tables", required=False),
+            Parameter("json_parsing_strategy", "JSON parsing (FLAT/SPLIT/COLLAPSE/NATIVE/NATURAL/COLLAPSE_EXCEPT_ARRAYS)", required=False),
+            Parameter("object_configurations", "Array of object configs", required=False),
+            Parameter("status", "Initial state (PAUSED/STREAMING/SINKING)", required=False),
         ],
         examples=[
             "Create a new pipeline",

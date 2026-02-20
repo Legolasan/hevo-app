@@ -653,12 +653,17 @@ class ActionExecutor:
         source_type = params.get("source_type")
         source_config = params.get("source_config")
         destination_id = params.get("destination_id")
-        name = params.get("name")
+        name = params.get("name") or params.get("source_name")
+        auto_mapping = params.get("auto_mapping", "ENABLED")
+        destination_table_prefix = params.get("destination_table_prefix")
+        json_parsing_strategy = params.get("json_parsing_strategy")
+        object_configurations = params.get("object_configurations")
+        status = params.get("status")
 
         if not source_type:
             return ActionResult(
                 success=False,
-                message="Source type is required (e.g., MYSQL, POSTGRES, SALESFORCE).",
+                message="Source type is required (e.g., MYSQL, POSTGRES, SALESFORCE_V2).",
             )
 
         if not source_config:
@@ -673,12 +678,33 @@ class ActionExecutor:
                 message="Destination ID is required.",
             )
 
+        # Validate json_parsing_strategy if provided
+        valid_strategies = ["FLAT", "SPLIT", "COLLAPSE", "NATIVE", "NATURAL", "COLLAPSE_EXCEPT_ARRAYS"]
+        if json_parsing_strategy and json_parsing_strategy.upper() not in valid_strategies:
+            return ActionResult(
+                success=False,
+                message=f"Invalid json_parsing_strategy. Must be one of: {', '.join(valid_strategies)}",
+            )
+
+        # Validate status if provided
+        valid_statuses = ["PAUSED", "STREAMING", "SINKING"]
+        if status and status.upper() not in valid_statuses:
+            return ActionResult(
+                success=False,
+                message=f"Invalid status. Must be one of: {', '.join(valid_statuses)}",
+            )
+
         try:
             result = self.pipelines.create(
                 source_type=source_type.upper(),
                 source_config=source_config,
                 destination_id=int(destination_id),
                 name=name,
+                auto_mapping=auto_mapping.upper() if auto_mapping else "ENABLED",
+                destination_table_prefix=destination_table_prefix,
+                json_parsing_strategy=json_parsing_strategy.upper() if json_parsing_strategy else None,
+                object_configurations=object_configurations,
+                status=status.upper() if status else None,
             )
             pipeline_id = result.get("id", "unknown")
             return ActionResult(

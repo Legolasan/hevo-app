@@ -244,16 +244,26 @@ class HevoClient:
         destination_id: int,
         source_name: Optional[str] = None,
         auto_mapping: str = "ENABLED",
+        destination_table_prefix: Optional[str] = None,
+        json_parsing_strategy: Optional[str] = None,
+        object_configurations: Optional[list] = None,
+        status: Optional[str] = None,
     ) -> dict:
         """
         Create a new pipeline.
 
         Args:
-            source_type: Type of source (e.g., MYSQL, POSTGRES, SALESFORCE)
+            source_type: Type of source (e.g., MYSQL, POSTGRES, SALESFORCE_V2)
             source_config: Source connection configuration
             destination_id: ID of the destination to connect to
             source_name: Optional name for the pipeline
             auto_mapping: Auto-mapping mode (ENABLED, DISABLED)
+            destination_table_prefix: Prefix to apply to destination table names
+            json_parsing_strategy: JSON parsing approach (FLAT, SPLIT, COLLAPSE,
+                                   NATIVE, NATURAL, COLLAPSE_EXCEPT_ARRAYS)
+            object_configurations: Array of object configs with namespace,
+                                   task_category_type, id, config, status
+            status: Initial pipeline state (PAUSED, STREAMING, SINKING)
 
         Returns:
             Created pipeline data
@@ -266,6 +276,14 @@ class HevoClient:
         }
         if source_name:
             payload["source_name"] = source_name
+        if destination_table_prefix:
+            payload["destination_table_prefix"] = destination_table_prefix
+        if json_parsing_strategy:
+            payload["json_parsing_strategy"] = json_parsing_strategy
+        if object_configurations:
+            payload["object_configurations"] = object_configurations
+        if status:
+            payload["status"] = status
         return self.post("/pipelines", json=payload)
 
     def delete_pipeline(self, pipeline_id: str) -> dict:

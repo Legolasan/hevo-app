@@ -188,16 +188,25 @@ class PipelineOperations:
         destination_id: int,
         name: Optional[str] = None,
         auto_mapping: str = "ENABLED",
+        destination_table_prefix: Optional[str] = None,
+        json_parsing_strategy: Optional[str] = None,
+        object_configurations: Optional[list] = None,
+        status: Optional[str] = None,
     ) -> dict:
         """
         Create a new pipeline.
 
         Args:
-            source_type: Source type (MYSQL, POSTGRES, etc.)
+            source_type: Source type (MYSQL, POSTGRES, SALESFORCE_V2, etc.)
             source_config: Source connection configuration
             destination_id: ID of the destination
             name: Optional pipeline name
-            auto_mapping: Auto-mapping mode
+            auto_mapping: Auto-mapping mode (ENABLED, DISABLED)
+            destination_table_prefix: Prefix for destination table names
+            json_parsing_strategy: JSON parsing (FLAT, SPLIT, COLLAPSE, NATIVE,
+                                   NATURAL, COLLAPSE_EXCEPT_ARRAYS)
+            object_configurations: Array of object configs
+            status: Initial state (PAUSED, STREAMING, SINKING)
 
         Returns:
             Created pipeline data
@@ -208,6 +217,10 @@ class PipelineOperations:
             destination_id=destination_id,
             source_name=name,
             auto_mapping=auto_mapping,
+            destination_table_prefix=destination_table_prefix,
+            json_parsing_strategy=json_parsing_strategy,
+            object_configurations=object_configurations,
+            status=status,
         )
 
     def delete(
