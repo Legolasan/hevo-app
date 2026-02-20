@@ -242,7 +242,7 @@ def setup():
     )
     region = Prompt.ask(
         "Hevo Region",
-        choices=["us", "eu", "in", "apac"],
+        choices=["us", "us2", "eu", "in", "asia", "au"],
         default=config.hevo.region,
     )
 

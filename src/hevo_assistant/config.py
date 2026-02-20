@@ -18,7 +18,7 @@ class HevoConfig(BaseModel):
 
     api_key: SecretStr = Field(default=SecretStr(""), description="Hevo API Key")
     api_secret: SecretStr = Field(default=SecretStr(""), description="Hevo API Secret")
-    region: Literal["us", "eu", "in", "apac"] = Field(
+    region: Literal["us", "us2", "eu", "in", "asia", "au", "apac"] = Field(
         default="us", description="Hevo region"
     )
 
@@ -27,9 +27,12 @@ class HevoConfig(BaseModel):
         """Get the base URL for the Hevo API based on region."""
         region_urls = {
             "us": "https://us.hevodata.com/api/public/v2.0",
+            "us2": "https://us2.hevodata.com/api/public/v2.0",
             "eu": "https://eu.hevodata.com/api/public/v2.0",
             "in": "https://in.hevodata.com/api/public/v2.0",
-            "apac": "https://apac.hevodata.com/api/public/v2.0",
+            "asia": "https://asia.hevodata.com/api/public/v2.0",
+            "au": "https://au.hevodata.com/api/public/v2.0",
+            "apac": "https://asia.hevodata.com/api/public/v2.0",  # Deprecated: use "asia"
         }
         return region_urls.get(self.region, region_urls["us"])
 
