@@ -125,6 +125,7 @@ class ActionExecutor:
             "update_pipeline_schedule": self._update_pipeline_schedule,
             "get_pipeline_position": self._get_pipeline_position,
             "update_pipeline_position": self._update_pipeline_position,
+            "update_pipeline_source": self._update_pipeline_source,
 
             # Object actions
             "list_objects": self._list_objects,
@@ -136,11 +137,15 @@ class ActionExecutor:
             "restart_object": self._restart_object,
             "get_object_position": self._get_object_position,
             "update_object_position": self._update_object_position,
+            "get_object_stats": self._get_object_stats,
+            "get_object_query_mode": self._get_object_query_mode,
+            "update_object_query_mode": self._update_object_query_mode,
 
             # Destination actions
             "list_destinations": self._list_destinations,
             "get_destination": self._get_destination,
             "create_destination": self._create_destination,
+            "update_destination": self._update_destination,
             "get_destination_stats": self._get_destination_stats,
             "load_destination": self._load_destination,
 
@@ -154,6 +159,7 @@ class ActionExecutor:
             "pause_model": self._pause_model,
             "resume_model": self._resume_model,
             "reset_model": self._reset_model,
+            "update_model_schedule": self._update_model_schedule,
 
             # Workflow actions
             "list_workflows": self._list_workflows,
@@ -164,6 +170,7 @@ class ActionExecutor:
             "get_transformation": self._get_transformation,
             "update_transformation": self._update_transformation,
             "test_transformation": self._test_transformation,
+            "get_transformation_sample": self._get_transformation_sample,
 
             # Event type actions
             "list_event_types": self._list_event_types,
@@ -944,6 +951,39 @@ class ActionExecutor:
                 )
             raise
 
+    def _update_pipeline_source(self, params: dict) -> ActionResult:
+        """Update pipeline source configuration."""
+        pipeline_id = params.get("id") or params.get("pipeline_id")
+        name = params.get("name")
+        source_config = params.get("source_config")
+
+        if not pipeline_id and name:
+            pipeline = self.client.get_pipeline_by_name(name)
+            if not pipeline:
+                return ActionResult(
+                    success=False,
+                    message=f"Pipeline not found: {name}",
+                )
+            pipeline_id = pipeline.get("id")
+
+        if not pipeline_id:
+            return ActionResult(
+                success=False,
+                message="Pipeline ID or name is required.",
+            )
+
+        if not source_config:
+            return ActionResult(
+                success=False,
+                message="Source configuration is required.",
+            )
+
+        self.client.update_pipeline_source(pipeline_id, source_config)
+        return ActionResult(
+            success=True,
+            message=f"✓ Pipeline '{name or pipeline_id}' source configuration updated.",
+        )
+
     # ==================== New Object Actions ====================
 
     def _get_object(self, params: dict) -> ActionResult:
@@ -1119,6 +1159,75 @@ class ActionExecutor:
                 )
             raise
 
+    def _get_object_stats(self, params: dict) -> ActionResult:
+        """Get statistics for a specific object."""
+        pipeline_id = params.get("pipeline_id")
+        object_name = params.get("object_name")
+
+        if not pipeline_id or not object_name:
+            return ActionResult(
+                success=False,
+                message="Both pipeline_id and object_name are required.",
+            )
+
+        stats = self.client.get_object_stats(pipeline_id, object_name)
+        events = stats.get("events_count", 0)
+        last_sync = stats.get("last_sync_time", "N/A")
+
+        return ActionResult(
+            success=True,
+            message=(
+                f"📊 Object '{object_name}' statistics:\n"
+                f"Events synced: {events:,}\n"
+                f"Last sync: {last_sync}"
+            ),
+            data=stats,
+        )
+
+    def _get_object_query_mode(self, params: dict) -> ActionResult:
+        """Get query mode for a specific object."""
+        pipeline_id = params.get("pipeline_id")
+        object_name = params.get("object_name")
+
+        if not pipeline_id or not object_name:
+            return ActionResult(
+                success=False,
+                message="Both pipeline_id and object_name are required.",
+            )
+
+        result = self.client.get_object_query_mode(pipeline_id, object_name)
+        query_mode = result.get("query_mode", "UNKNOWN")
+
+        return ActionResult(
+            success=True,
+            message=f"📋 Object '{object_name}' query mode: {query_mode}",
+            data=result,
+        )
+
+    def _update_object_query_mode(self, params: dict) -> ActionResult:
+        """Update query mode for a specific object."""
+        pipeline_id = params.get("pipeline_id")
+        object_name = params.get("object_name")
+        query_mode = params.get("query_mode")
+
+        if not pipeline_id or not object_name:
+            return ActionResult(
+                success=False,
+                message="Both pipeline_id and object_name are required.",
+            )
+
+        if not query_mode:
+            return ActionResult(
+                success=False,
+                message="Query mode is required (e.g., FULL_DUMP, INCREMENTAL).",
+            )
+
+        self.client.update_object_query_mode(pipeline_id, object_name, query_mode.upper())
+        return ActionResult(
+            success=True,
+            message=f"✓ Object '{object_name}' query mode updated to {query_mode.upper()}.",
+        )
+
     # ==================== New Destination Actions ====================
 
     def _get_destination(self, params: dict) -> ActionResult:
@@ -1188,6 +1297,40 @@ class ActionExecutor:
             success=True,
             message=f"✓ Destination '{name}' created successfully! ID: {dest_id}",
             data=result,
+        )
+
+    def _update_destination(self, params: dict) -> ActionResult:
+        """Update destination configuration."""
+        destination_id = params.get("id")
+        dest_name = params.get("dest_name")
+        new_name = params.get("name")
+        config = params.get("config")
+
+        if not destination_id and dest_name:
+            dest = self.destinations.get_by_name(dest_name)
+            if not dest:
+                return ActionResult(
+                    success=False,
+                    message=f"Destination not found: {dest_name}",
+                )
+            destination_id = dest.id
+
+        if not destination_id:
+            return ActionResult(
+                success=False,
+                message="Destination ID or name (dest_name) is required.",
+            )
+
+        if not new_name and not config:
+            return ActionResult(
+                success=False,
+                message="At least one of name or config is required.",
+            )
+
+        self.client.update_destination(destination_id, name=new_name, config=config)
+        return ActionResult(
+            success=True,
+            message=f"✓ Destination '{dest_name or destination_id}' updated.",
         )
 
     def _get_destination_stats(self, params: dict) -> ActionResult:
@@ -1445,6 +1588,39 @@ class ActionExecutor:
         except ValueError as e:
             return ActionResult(success=False, message=str(e))
 
+    def _update_model_schedule(self, params: dict) -> ActionResult:
+        """Update model schedule configuration."""
+        model_id = params.get("id")
+        name = params.get("name")
+        schedule_config = params.get("schedule_config")
+
+        if not model_id and name:
+            model = self.models.get_by_name(name)
+            if not model:
+                return ActionResult(
+                    success=False,
+                    message=f"Model not found: {name}",
+                )
+            model_id = model.id
+
+        if not model_id:
+            return ActionResult(
+                success=False,
+                message="Model ID or name is required.",
+            )
+
+        if not schedule_config:
+            return ActionResult(
+                success=False,
+                message="Schedule configuration is required (e.g., {type, frequency, cron_expression}).",
+            )
+
+        self.client.update_model_schedule(model_id, schedule_config)
+        return ActionResult(
+            success=True,
+            message=f"✓ Model '{name or model_id}' schedule updated.",
+        )
+
     # ==================== New Workflow Actions ====================
 
     def _get_workflow(self, params: dict) -> ActionResult:
@@ -1561,6 +1737,33 @@ class ActionExecutor:
                 message=f"❌ Transformation test failed:\n{error_msg}",
                 data=result,
             )
+
+    def _get_transformation_sample(self, params: dict) -> ActionResult:
+        """Get sample data for transformation testing."""
+        pipeline_id = params.get("pipeline_id")
+        name = params.get("pipeline_name")
+
+        if not pipeline_id and name:
+            pipeline = self.client.get_pipeline_by_name(name)
+            if not pipeline:
+                return ActionResult(
+                    success=False,
+                    message=f"Pipeline not found: {name}",
+                )
+            pipeline_id = pipeline.get("id")
+
+        if not pipeline_id:
+            return ActionResult(
+                success=False,
+                message="Pipeline ID or name is required.",
+            )
+
+        sample = self.client.get_transformation_sample(pipeline_id)
+        return ActionResult(
+            success=True,
+            message=f"📋 Sample data for transformation:\n\n```json\n{sample}\n```",
+            data=sample,
+        )
 
     # ==================== Event Type Actions ====================
 

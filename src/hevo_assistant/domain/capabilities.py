@@ -261,6 +261,21 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         follow_ups=["get_pipeline_position"],
         implemented=True,
     ),
+    "update_pipeline_source": ActionDefinition(
+        name="update_pipeline_source",
+        description="Update pipeline source configuration",
+        category=ActionCategory.PIPELINES,
+        method="PUT",
+        endpoint="/pipelines/{id}/source",
+        parameters=[
+            Parameter("id", "Pipeline ID", required=False, example="12345"),
+            Parameter("name", "Pipeline name", required=False, example="MySQL_to_Snowflake"),
+            Parameter("source_config", "Updated source connection configuration", required=True, param_type="object"),
+        ],
+        examples=["Update source config", "Change source settings", "Update connection details"],
+        follow_ups=["get_pipeline"],
+        implemented=True,
+    ),
 
     # =========================================================================
     # PIPELINE OBJECTS
@@ -402,6 +417,49 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         ],
         follow_ups=["list_objects", "get_pipeline"],
     ),
+    "get_object_stats": ActionDefinition(
+        name="get_object_stats",
+        description="Get statistics for a specific object in a pipeline",
+        category=ActionCategory.OBJECTS,
+        method="GET",
+        endpoint="/pipelines/{id}/objects/{name}/stats",
+        parameters=[
+            Parameter("pipeline_id", "Pipeline ID", required=True, example="12345"),
+            Parameter("object_name", "Object/table name", required=True, example="users"),
+        ],
+        examples=["Show object stats", "Get stats for users table", "How many events synced?"],
+        follow_ups=["get_object", "list_objects"],
+        implemented=True,
+    ),
+    "get_object_query_mode": ActionDefinition(
+        name="get_object_query_mode",
+        description="Get query mode for a specific object",
+        category=ActionCategory.OBJECTS,
+        method="GET",
+        endpoint="/pipelines/{id}/objects/{name}/query-mode",
+        parameters=[
+            Parameter("pipeline_id", "Pipeline ID", required=True, example="12345"),
+            Parameter("object_name", "Object/table name", required=True, example="users"),
+        ],
+        examples=["Show object query mode", "Get query mode for users"],
+        follow_ups=["update_object_query_mode"],
+        implemented=True,
+    ),
+    "update_object_query_mode": ActionDefinition(
+        name="update_object_query_mode",
+        description="Update query mode for a specific object",
+        category=ActionCategory.OBJECTS,
+        method="PUT",
+        endpoint="/pipelines/{id}/objects/{name}/query-mode",
+        parameters=[
+            Parameter("pipeline_id", "Pipeline ID", required=True, example="12345"),
+            Parameter("object_name", "Object/table name", required=True, example="users"),
+            Parameter("query_mode", "Query mode (FULL_DUMP, INCREMENTAL)", required=True, example="INCREMENTAL"),
+        ],
+        examples=["Change query mode to incremental", "Set full dump mode"],
+        follow_ups=["get_object_query_mode", "get_object"],
+        implemented=True,
+    ),
 
     # =========================================================================
     # TRANSFORMATIONS
@@ -446,6 +504,20 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         ],
         examples=["Test the transformation", "Try the transformation"],
         follow_ups=["update_transformation"],
+        implemented=True,
+    ),
+    "get_transformation_sample": ActionDefinition(
+        name="get_transformation_sample",
+        description="Get sample data for transformation testing",
+        category=ActionCategory.TRANSFORMATIONS,
+        method="GET",
+        endpoint="/pipelines/{id}/transformations/sample",
+        parameters=[
+            Parameter("pipeline_id", "Pipeline ID", required=True, example="12345"),
+            Parameter("pipeline_name", "Pipeline name", required=False, example="Salesforce_to_Snowflake"),
+        ],
+        examples=["Get sample data", "Show transformation sample"],
+        follow_ups=["test_transformation"],
         implemented=True,
     ),
 
@@ -586,6 +658,22 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         ],
         examples=["Create a new destination", "Add Snowflake destination"],
         follow_ups=["list_destinations"],
+        implemented=True,
+    ),
+    "update_destination": ActionDefinition(
+        name="update_destination",
+        description="Update destination configuration",
+        category=ActionCategory.DESTINATIONS,
+        method="PUT",
+        endpoint="/destinations/{id}",
+        parameters=[
+            Parameter("id", "Destination ID", required=False, example="123"),
+            Parameter("dest_name", "Destination name (to find)", required=False, example="Production_Snowflake"),
+            Parameter("name", "New name for destination", required=False),
+            Parameter("config", "Updated connection configuration", required=False, param_type="object"),
+        ],
+        examples=["Update destination config", "Change destination settings"],
+        follow_ups=["get_destination"],
         implemented=True,
     ),
     "get_destination_stats": ActionDefinition(
@@ -758,6 +846,21 @@ CAPABILITIES: Dict[str, ActionDefinition] = {
         ],
         examples=["Reset the model", "Clear model data"],
         follow_ups=["run_model"],
+        implemented=True,
+    ),
+    "update_model_schedule": ActionDefinition(
+        name="update_model_schedule",
+        description="Update model schedule configuration",
+        category=ActionCategory.MODELS,
+        method="PUT",
+        endpoint="/models/{id}/schedule",
+        parameters=[
+            Parameter("id", "Model ID", required=False, example="456"),
+            Parameter("name", "Model name", required=False, example="daily_summary"),
+            Parameter("schedule_config", "Schedule configuration (type, frequency, cron_expression, destination_tables)", required=True, param_type="object"),
+        ],
+        examples=["Update model schedule", "Change model run frequency"],
+        follow_ups=["get_model", "run_model"],
         implemented=True,
     ),
 

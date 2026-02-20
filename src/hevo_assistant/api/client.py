@@ -296,12 +296,25 @@ class HevoClient:
 
         Args:
             pipeline_id: Pipeline ID
-            priority: Priority level (HIGH, NORMAL, LOW)
+            priority: Priority level (HIGH or NORMAL)
 
         Returns:
             Updated pipeline data
         """
         return self.put(f"/pipelines/{pipeline_id}/priority", json={"priority": priority})
+
+    def update_pipeline_source(self, pipeline_id: str, source_config: dict) -> dict:
+        """
+        Update pipeline source configuration.
+
+        Args:
+            pipeline_id: Pipeline ID
+            source_config: Updated source connection configuration
+
+        Returns:
+            Updated pipeline data
+        """
+        return self.put(f"/pipelines/{pipeline_id}/source", json=source_config)
 
     def get_pipeline_schedule(self, pipeline_id: str) -> dict:
         """Get pipeline schedule configuration."""
@@ -440,6 +453,54 @@ class HevoClient:
             payload["key_values"] = key_values
         return self.put(f"/pipelines/{pipeline_id}/objects/{object_name}/position", json=payload)
 
+    def get_object_stats(self, pipeline_id: str, object_name: str) -> dict:
+        """
+        Get statistics for a specific object in a pipeline.
+
+        Args:
+            pipeline_id: Pipeline ID
+            object_name: Object/table name
+
+        Returns:
+            Object statistics
+        """
+        return self.get(f"/pipelines/{pipeline_id}/objects/{object_name}/stats")
+
+    def get_object_query_mode(self, pipeline_id: str, object_name: str) -> dict:
+        """
+        Get query mode for a specific object in a pipeline.
+
+        Args:
+            pipeline_id: Pipeline ID
+            object_name: Object/table name
+
+        Returns:
+            Query mode configuration
+        """
+        return self.get(f"/pipelines/{pipeline_id}/objects/{object_name}/query-mode")
+
+    def update_object_query_mode(
+        self,
+        pipeline_id: str,
+        object_name: str,
+        query_mode: str,
+    ) -> dict:
+        """
+        Update query mode for a specific object in a pipeline.
+
+        Args:
+            pipeline_id: Pipeline ID
+            object_name: Object/table name
+            query_mode: Query mode (e.g., FULL_DUMP, INCREMENTAL)
+
+        Returns:
+            Updated query mode configuration
+        """
+        return self.put(
+            f"/pipelines/{pipeline_id}/objects/{object_name}/query-mode",
+            json={"query_mode": query_mode}
+        )
+
     # ==================== Destination Operations ====================
 
     def list_destinations(self, limit: int = 500) -> list[dict]:
@@ -490,6 +551,30 @@ class HevoClient:
             "name": name,
             "config": config,
         })
+
+    def update_destination(
+        self,
+        destination_id: str,
+        name: Optional[str] = None,
+        config: Optional[dict] = None,
+    ) -> dict:
+        """
+        Update a destination.
+
+        Args:
+            destination_id: Destination ID
+            name: New name for the destination
+            config: Updated connection configuration
+
+        Returns:
+            Updated destination data
+        """
+        payload = {}
+        if name:
+            payload["name"] = name
+        if config:
+            payload["config"] = config
+        return self.put(f"/destinations/{destination_id}", json=payload)
 
     def get_destination_table_stats(
         self,
