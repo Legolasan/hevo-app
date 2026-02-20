@@ -751,13 +751,13 @@ class ActionExecutor:
         if not priority:
             return ActionResult(
                 success=False,
-                message="Priority is required (HIGH, NORMAL, or LOW).",
+                message="Priority is required (HIGH or NORMAL).",
             )
 
-        if priority.upper() not in ("HIGH", "NORMAL", "LOW"):
+        if priority.upper() not in ("HIGH", "NORMAL"):
             return ActionResult(
                 success=False,
-                message="Priority must be HIGH, NORMAL, or LOW.",
+                message="Priority must be HIGH or NORMAL.",
             )
 
         try:
@@ -799,23 +799,31 @@ class ActionExecutor:
         """Update pipeline schedule."""
         pipeline_id = params.get("id")
         name = params.get("name")
-        schedule_config = params.get("schedule")
+        frequency = params.get("frequency")
 
-        if not schedule_config:
+        if not frequency:
             return ActionResult(
                 success=False,
-                message="Schedule configuration is required.",
+                message="Frequency (in minutes) is required.",
+            )
+
+        try:
+            frequency_int = int(frequency)
+        except (ValueError, TypeError):
+            return ActionResult(
+                success=False,
+                message="Frequency must be an integer (minutes).",
             )
 
         try:
             self.pipelines.update_schedule(
-                schedule_config=schedule_config,
+                frequency=frequency_int,
                 pipeline_id=pipeline_id,
                 name=name,
             )
             return ActionResult(
                 success=True,
-                message=f"✓ Pipeline '{name or pipeline_id}' schedule updated.",
+                message=f"✓ Pipeline '{name or pipeline_id}' schedule updated to every {frequency_int} minutes.",
             )
         except ValueError as e:
             return ActionResult(success=False, message=str(e))
@@ -1046,16 +1054,18 @@ class ActionExecutor:
 
     def _create_model(self, params: dict) -> ActionResult:
         """Create a new model."""
-        destination_id = params.get("destination_id")
+        source_destination_id = params.get("source_destination_id") or params.get("destination_id")
         name = params.get("name")
         query = params.get("query") or params.get("source_query")
-        target_table = params.get("target_table")
-        load_type = params.get("load_type", "FULL_LOAD")
+        table_name = params.get("table_name") or params.get("target_table")
+        primary_keys = params.get("primary_keys")
+        load_type = params.get("load_type", "TRUNCATE_AND_LOAD")
+        schedule = params.get("schedule")
 
-        if not destination_id:
+        if not source_destination_id:
             return ActionResult(
                 success=False,
-                message="Destination ID is required.",
+                message="Source destination ID (source_destination_id) is required.",
             )
 
         if not name:
@@ -1067,15 +1077,31 @@ class ActionExecutor:
         if not query:
             return ActionResult(
                 success=False,
-                message="SQL query is required.",
+                message="SQL query (source_query) is required.",
+            )
+
+        if not table_name:
+            return ActionResult(
+                success=False,
+                message="Table name (table_name) is required.",
+            )
+
+        # Validate load_type
+        valid_load_types = ["TRUNCATE_AND_LOAD", "INCREMENTAL_LOAD"]
+        if load_type.upper() not in valid_load_types:
+            return ActionResult(
+                success=False,
+                message=f"Invalid load_type. Must be one of: {', '.join(valid_load_types)}",
             )
 
         result = self.models.create(
-            destination_id=int(destination_id),
+            source_destination_id=int(source_destination_id),
             name=name,
             source_query=query,
-            target_table=target_table,
+            table_name=table_name,
+            primary_keys=primary_keys,
             load_type=load_type.upper(),
+            schedule=schedule,
         )
         model_id = result.get("id", "unknown")
         return ActionResult(
@@ -1090,7 +1116,9 @@ class ActionExecutor:
         name = params.get("name")
         new_name = params.get("new_name")
         query = params.get("query") or params.get("source_query")
-        target_table = params.get("target_table")
+        table_name = params.get("table_name") or params.get("target_table")
+        primary_keys = params.get("primary_keys")
+        load_type = params.get("load_type")
 
         if not model_id and not name:
             return ActionResult(
@@ -1098,13 +1126,25 @@ class ActionExecutor:
                 message="Model ID or name is required.",
             )
 
+        # Validate load_type if provided
+        if load_type:
+            valid_load_types = ["TRUNCATE_AND_LOAD", "INCREMENTAL_LOAD"]
+            if load_type.upper() not in valid_load_types:
+                return ActionResult(
+                    success=False,
+                    message=f"Invalid load_type. Must be one of: {', '.join(valid_load_types)}",
+                )
+            load_type = load_type.upper()
+
         try:
             self.models.update(
                 model_id=model_id,
                 name=name,
                 new_name=new_name,
                 source_query=query,
-                target_table=target_table,
+                table_name=table_name,
+                primary_keys=primary_keys,
+                load_type=load_type,
             )
             return ActionResult(
                 success=True,

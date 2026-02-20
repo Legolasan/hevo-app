@@ -307,18 +307,18 @@ class HevoClient:
         """Get pipeline schedule configuration."""
         return self.get(f"/pipelines/{pipeline_id}/schedule")
 
-    def update_pipeline_schedule(self, pipeline_id: str, schedule_config: dict) -> dict:
+    def update_pipeline_schedule(self, pipeline_id: str, frequency: int) -> dict:
         """
         Update pipeline schedule.
 
         Args:
             pipeline_id: Pipeline ID
-            schedule_config: Schedule configuration (type, frequency, etc.)
+            frequency: Frequency interval in minutes
 
         Returns:
             Updated schedule data
         """
-        return self.put(f"/pipelines/{pipeline_id}/schedule", json=schedule_config)
+        return self.put(f"/pipelines/{pipeline_id}/schedule", json={"frequency": frequency})
 
     def get_pipeline_objects(
         self, pipeline_id: str, status: Optional[str] = None
@@ -453,33 +453,45 @@ class HevoClient:
 
     def create_model(
         self,
-        destination_id: int,
+        source_destination_id: int,
         name: str,
         source_query: str,
-        target_table: Optional[str] = None,
-        load_type: str = "FULL_LOAD",
+        table_name: str,
+        primary_keys: Optional[list] = None,
+        load_type: str = "TRUNCATE_AND_LOAD",
+        schedule: Optional[dict] = None,
     ) -> dict:
         """
         Create a new model.
 
         Args:
-            destination_id: ID of the destination
+            source_destination_id: ID of the source destination for query execution
             name: Model name
             source_query: SQL query for the model
-            target_table: Target table name (defaults to model name)
-            load_type: Load type (FULL_LOAD or INCREMENTAL)
+            table_name: Destination table name
+            primary_keys: List of primary key column names (optional)
+            load_type: TRUNCATE_AND_LOAD or INCREMENTAL_LOAD
+            schedule: Schedule config with type (REAL_TIME, FREQUENCY, CRON, LOAD),
+                      frequency (minutes), cron_expression, destination_tables
 
         Returns:
             Created model data
         """
-        payload = {
-            "destination_id": destination_id,
-            "name": name,
-            "source_query": source_query,
+        destination_table_details = {
+            "table_name": table_name,
             "load_type": load_type,
         }
-        if target_table:
-            payload["target_table"] = target_table
+        if primary_keys:
+            destination_table_details["primary_keys"] = primary_keys
+
+        payload = {
+            "name": name,
+            "source_destination_id": source_destination_id,
+            "source_query": source_query,
+            "destination_table_details": destination_table_details,
+        }
+        if schedule:
+            payload["schedule"] = schedule
         return self.post("/models", json=payload)
 
     def update_model(
@@ -487,7 +499,9 @@ class HevoClient:
         model_id: str,
         name: Optional[str] = None,
         source_query: Optional[str] = None,
-        target_table: Optional[str] = None,
+        table_name: Optional[str] = None,
+        primary_keys: Optional[list] = None,
+        load_type: Optional[str] = None,
     ) -> dict:
         """
         Update a model.
@@ -496,18 +510,27 @@ class HevoClient:
             model_id: Model ID
             name: New name (optional)
             source_query: New SQL query (optional)
-            target_table: New target table (optional)
+            table_name: Destination table name (optional)
+            primary_keys: List of primary key column names (optional)
+            load_type: TRUNCATE_AND_LOAD or INCREMENTAL_LOAD (optional)
 
         Returns:
             Updated model data
         """
-        payload = {}
+        # destination_table_details is required per API docs
+        destination_table_details = {}
+        if table_name:
+            destination_table_details["table_name"] = table_name
+        if primary_keys:
+            destination_table_details["primary_keys"] = primary_keys
+        if load_type:
+            destination_table_details["load_type"] = load_type
+
+        payload = {"destination_table_details": destination_table_details}
         if name:
             payload["name"] = name
         if source_query:
             payload["source_query"] = source_query
-        if target_table:
-            payload["target_table"] = target_table
         return self.put(f"/models/{model_id}", json=payload)
 
     def update_model_status(self, model_id: str, status: str) -> dict:

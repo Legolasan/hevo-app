@@ -296,7 +296,7 @@ class PipelineOperations:
 
     def update_schedule(
         self,
-        schedule_config: dict,
+        frequency: int,
         pipeline_id: Optional[str] = None,
         name: Optional[str] = None,
     ) -> dict:
@@ -304,7 +304,7 @@ class PipelineOperations:
         Update pipeline schedule.
 
         Args:
-            schedule_config: Schedule configuration (e.g., {"type": "INTERVAL", "value": 15})
+            frequency: Frequency interval in minutes
             pipeline_id: Pipeline ID
             name: Pipeline name (used if ID not provided)
 
@@ -320,7 +320,7 @@ class PipelineOperations:
         if not pipeline_id:
             raise ValueError("Either pipeline_id or name is required")
 
-        return self.client.update_pipeline_schedule(pipeline_id, schedule_config)
+        return self.client.update_pipeline_schedule(pipeline_id, frequency)
 
 
 def get_pipeline_operations() -> PipelineOperations:

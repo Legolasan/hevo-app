@@ -85,31 +85,37 @@ class ModelOperations:
 
     def create(
         self,
-        destination_id: int,
+        source_destination_id: int,
         name: str,
         source_query: str,
-        target_table: Optional[str] = None,
-        load_type: str = "FULL_LOAD",
+        table_name: str,
+        primary_keys: Optional[list] = None,
+        load_type: str = "TRUNCATE_AND_LOAD",
+        schedule: Optional[dict] = None,
     ) -> dict:
         """
         Create a new model.
 
         Args:
-            destination_id: ID of the destination
+            source_destination_id: ID of the source destination for query execution
             name: Model name
             source_query: SQL query for the model
-            target_table: Target table name (defaults to model name)
-            load_type: Load type (FULL_LOAD or INCREMENTAL)
+            table_name: Destination table name
+            primary_keys: List of primary key column names (optional)
+            load_type: TRUNCATE_AND_LOAD or INCREMENTAL_LOAD
+            schedule: Schedule config with type, frequency, cron_expression, etc.
 
         Returns:
             Created model data
         """
         return self.client.create_model(
-            destination_id=destination_id,
+            source_destination_id=source_destination_id,
             name=name,
             source_query=source_query,
-            target_table=target_table,
+            table_name=table_name,
+            primary_keys=primary_keys,
             load_type=load_type,
+            schedule=schedule,
         )
 
     def update(
@@ -118,7 +124,9 @@ class ModelOperations:
         name: Optional[str] = None,
         new_name: Optional[str] = None,
         source_query: Optional[str] = None,
-        target_table: Optional[str] = None,
+        table_name: Optional[str] = None,
+        primary_keys: Optional[list] = None,
+        load_type: Optional[str] = None,
     ) -> dict:
         """
         Update a model.
@@ -128,7 +136,9 @@ class ModelOperations:
             name: Model name (used if ID not provided)
             new_name: New name for the model
             source_query: New SQL query
-            target_table: New target table
+            table_name: Destination table name
+            primary_keys: List of primary key column names
+            load_type: TRUNCATE_AND_LOAD or INCREMENTAL_LOAD
 
         Returns:
             Updated model data
@@ -146,7 +156,9 @@ class ModelOperations:
             model_id=model_id,
             name=new_name,
             source_query=source_query,
-            target_table=target_table,
+            table_name=table_name,
+            primary_keys=primary_keys,
+            load_type=load_type,
         )
 
     def delete(
