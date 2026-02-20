@@ -123,6 +123,8 @@ class ActionExecutor:
             "update_pipeline_priority": self._update_pipeline_priority,
             "get_pipeline_schedule": self._get_pipeline_schedule,
             "update_pipeline_schedule": self._update_pipeline_schedule,
+            "get_pipeline_position": self._get_pipeline_position,
+            "update_pipeline_position": self._update_pipeline_position,
 
             # Object actions
             "list_objects": self._list_objects,
@@ -132,6 +134,8 @@ class ActionExecutor:
             "skip_object": self._skip_object,
             "include_object": self._include_object,
             "restart_object": self._restart_object,
+            "get_object_position": self._get_object_position,
+            "update_object_position": self._update_object_position,
 
             # Destination actions
             "list_destinations": self._list_destinations,
@@ -828,6 +832,118 @@ class ActionExecutor:
         except ValueError as e:
             return ActionResult(success=False, message=str(e))
 
+    def _get_pipeline_position(self, params: dict) -> ActionResult:
+        """Get position for a log-based pipeline."""
+        pipeline_id = params.get("id") or params.get("pipeline_id")
+        name = params.get("name")
+
+        if not pipeline_id and name:
+            pipeline = self.client.get_pipeline_by_name(name)
+            if not pipeline:
+                return ActionResult(
+                    success=False,
+                    message=f"Pipeline not found: {name}",
+                )
+            pipeline_id = pipeline.get("id")
+
+        if not pipeline_id:
+            return ActionResult(
+                success=False,
+                message="Pipeline ID or name is required.",
+            )
+
+        try:
+            positions = self.client.get_pipeline_position(pipeline_id)
+            if not positions:
+                return ActionResult(
+                    success=True,
+                    message=f"No position data for pipeline {pipeline_id}. Note: Position is only available for log-based pipelines.",
+                    data=[],
+                )
+
+            lines = [f"📍 Pipeline position for {name or pipeline_id}:", ""]
+            for pos in positions:
+                pos_type = pos.get("type", "UNKNOWN")
+                display = pos.get("display_position", "N/A")
+                file_name = pos.get("file_name", "")
+                lines.append(f"  Type: {pos_type}")
+                lines.append(f"  Position: {display}")
+                if file_name:
+                    lines.append(f"  File: {file_name}")
+                lines.append("")
+
+            return ActionResult(
+                success=True,
+                message="\n".join(lines),
+                data=positions,
+            )
+        except APIError as e:
+            if e.status_code == 400:
+                return ActionResult(
+                    success=False,
+                    message="Position is only defined for log-based pipelines.",
+                )
+            raise
+
+    def _update_pipeline_position(self, params: dict) -> ActionResult:
+        """Update position for a log-based pipeline."""
+        pipeline_id = params.get("id") or params.get("pipeline_id")
+        name = params.get("name")
+        file_name = params.get("file_name")
+        offset = params.get("offset")
+
+        if not pipeline_id and name:
+            pipeline = self.client.get_pipeline_by_name(name)
+            if not pipeline:
+                return ActionResult(
+                    success=False,
+                    message=f"Pipeline not found: {name}",
+                )
+            pipeline_id = pipeline.get("id")
+
+        if not pipeline_id:
+            return ActionResult(
+                success=False,
+                message="Pipeline ID or name is required.",
+            )
+
+        if file_name is None and offset is None:
+            return ActionResult(
+                success=False,
+                message="At least one of file_name or offset is required.",
+            )
+
+        try:
+            offset_int = int(offset) if offset is not None else None
+        except (ValueError, TypeError):
+            return ActionResult(
+                success=False,
+                message="Offset must be an integer.",
+            )
+
+        try:
+            self.client.update_pipeline_position(
+                pipeline_id=pipeline_id,
+                file_name=file_name,
+                offset=offset_int,
+            )
+            msg_parts = []
+            if file_name:
+                msg_parts.append(f"file_name={file_name}")
+            if offset_int is not None:
+                msg_parts.append(f"offset={offset_int}")
+            return ActionResult(
+                success=True,
+                message=f"✓ Pipeline position updated: {', '.join(msg_parts)}",
+            )
+        except APIError as e:
+            if e.status_code == 400:
+                return ActionResult(
+                    success=False,
+                    message="Position update is only available for log-based pipelines.",
+                )
+            raise
+
     # ==================== New Object Actions ====================
 
     def _get_object(self, params: dict) -> ActionResult:
@@ -905,6 +1021,103 @@ class ActionExecutor:
             success=True,
             message=f"✓ Object '{object_name}' included.",
         )
+
+    def _get_object_position(self, params: dict) -> ActionResult:
+        """Get position for a specific object in a pipeline."""
+        pipeline_id = params.get("pipeline_id")
+        object_name = params.get("object_name")
+
+        if not pipeline_id or not object_name:
+            return ActionResult(
+                success=False,
+                message="Both pipeline_id and object_name are required.",
+            )
+
+        try:
+            positions = self.client.get_object_position(pipeline_id, object_name)
+            if not positions:
+                return ActionResult(
+                    success=True,
+                    message=f"No position data for object '{object_name}'.",
+                    data=[],
+                )
+
+            lines = [f"📍 Object position for '{object_name}':", ""]
+            for pos in positions:
+                pos_type = pos.get("type", "UNKNOWN")
+                display = pos.get("display_position", "N/A")
+                field = pos.get("field_name", "")
+                lines.append(f"  Type: {pos_type}")
+                lines.append(f"  Position: {display}")
+                if field:
+                    lines.append(f"  Field: {field}")
+                lines.append("")
+
+            return ActionResult(
+                success=True,
+                message="\n".join(lines),
+                data=positions,
+            )
+        except APIError as e:
+            if e.status_code == 400:
+                return ActionResult(
+                    success=False,
+                    message="Position is only defined for log-based pipelines.",
+                )
+            raise
+
+    def _update_object_position(self, params: dict) -> ActionResult:
+        """Update position for a specific object in a pipeline."""
+        pipeline_id = params.get("pipeline_id")
+        object_name = params.get("object_name")
+        time = params.get("time")
+        month = params.get("month")
+        year = params.get("year")
+        key_values = params.get("key_values")
+
+        if not pipeline_id or not object_name:
+            return ActionResult(
+                success=False,
+                message="Both pipeline_id and object_name are required.",
+            )
+
+        if time is None and month is None and year is None and key_values is None:
+            return ActionResult(
+                success=False,
+                message="At least one of time, month, year, or key_values is required.",
+            )
+
+        # Convert to proper types
+        try:
+            time_int = int(time) if time is not None else None
+            month_int = int(month) if month is not None else None
+            year_int = int(year) if year is not None else None
+        except (ValueError, TypeError):
+            return ActionResult(
+                success=False,
+                message="time, month, and year must be integers.",
+            )
+
+        try:
+            self.client.update_object_position(
+                pipeline_id=pipeline_id,
+                object_name=object_name,
+                time=time_int,
+                month=month_int,
+                year=year_int,
+                key_values=key_values,
+            )
+            return ActionResult(
+                success=True,
+                message=f"✓ Object '{object_name}' position updated.",
+            )
+        except APIError as e:
+            if e.status_code == 400:
+                return ActionResult(
+                    success=False,
+                    message="Position update is only available for log-based pipelines.",
+                )
+            raise
 
     # ==================== New Destination Actions ====================
 

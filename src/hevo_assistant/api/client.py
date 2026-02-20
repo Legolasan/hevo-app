@@ -320,6 +320,43 @@ class HevoClient:
         """
         return self.put(f"/pipelines/{pipeline_id}/schedule", json={"frequency": frequency})
 
+    def get_pipeline_position(self, pipeline_id: str) -> list:
+        """
+        Get position for a log-based pipeline.
+
+        Args:
+            pipeline_id: Pipeline ID
+
+        Returns:
+            List of position objects with type, display_position, offset,
+            file_name, field_name, timezone, keys, month, year
+        """
+        return self.get(f"/pipelines/{pipeline_id}/position")
+
+    def update_pipeline_position(
+        self,
+        pipeline_id: str,
+        file_name: Optional[str] = None,
+        offset: Optional[int] = None,
+    ) -> dict:
+        """
+        Update position for a log-based pipeline.
+
+        Args:
+            pipeline_id: Pipeline ID
+            file_name: Name of the log file being processed
+            offset: Byte offset position within the log file
+
+        Returns:
+            Update result (204 No Content on success)
+        """
+        payload = {}
+        if file_name is not None:
+            payload["file_name"] = file_name
+        if offset is not None:
+            payload["offset"] = offset
+        return self.put(f"/pipelines/{pipeline_id}/position", json=payload)
+
     def get_pipeline_objects(
         self, pipeline_id: str, status: Optional[str] = None
     ) -> list[dict]:
@@ -355,6 +392,53 @@ class HevoClient:
     def get_object(self, pipeline_id: str, object_name: str) -> dict:
         """Get details for a specific object in a pipeline."""
         return self.get(f"/pipelines/{pipeline_id}/objects/{object_name}")
+
+    def get_object_position(self, pipeline_id: str, object_name: str) -> list:
+        """
+        Get position for a specific object in a pipeline.
+
+        Args:
+            pipeline_id: Pipeline ID
+            object_name: Object/table name
+
+        Returns:
+            List of position objects with type, display_position, offset, etc.
+        """
+        return self.get(f"/pipelines/{pipeline_id}/objects/{object_name}/position")
+
+    def update_object_position(
+        self,
+        pipeline_id: str,
+        object_name: str,
+        time: Optional[int] = None,
+        month: Optional[int] = None,
+        year: Optional[int] = None,
+        key_values: Optional[dict] = None,
+    ) -> dict:
+        """
+        Update position for a specific object in a pipeline.
+
+        Args:
+            pipeline_id: Pipeline ID
+            object_name: Object/table name
+            time: Timestamp value for position (int64)
+            month: Month component for date-based positioning
+            year: Year component for date-based positioning
+            key_values: Map of key-value pairs for object-based position
+
+        Returns:
+            Update result
+        """
+        payload = {}
+        if time is not None:
+            payload["time"] = time
+        if month is not None:
+            payload["month"] = month
+        if year is not None:
+            payload["year"] = year
+        if key_values is not None:
+            payload["key_values"] = key_values
+        return self.put(f"/pipelines/{pipeline_id}/objects/{object_name}/position", json=payload)
 
     # ==================== Destination Operations ====================
 
